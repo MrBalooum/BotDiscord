@@ -165,10 +165,9 @@ async def types(ctx):
 
     if types_found:
         type_list = "\n".join([f"- {type[0].capitalize()}" for type in types_found])
-        await ctx.send(f"🎮 **Types de jeux disponibles :**\n```{type_list}```\nTape `!type "NomDuType"` pour voir les jeux correspondants.")
+        await ctx.send(f"🎮 **Types de jeux disponibles :**\n```{type_list}```\nTape `!type NomDuType` pour voir les jeux correspondants.")
     else:
         await ctx.send("❌ Aucun type de jeu trouvé dans la base.")
-
 
 # 📌 Proposer un jeu aléatoire
 @bot.command()
