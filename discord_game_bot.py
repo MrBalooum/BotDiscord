@@ -4,6 +4,7 @@ import sqlite3
 import asyncio
 import os
 import random
+import requests
 
 # Configuration du bot
 TOKEN = os.getenv("TOKEN")
@@ -19,17 +20,27 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     price TEXT, 
                     type TEXT, 
                     duration TEXT, 
-                    download_available TEXT, 
+                    cloud_available TEXT, 
                     youtube_link TEXT, 
                     steam_link TEXT)''')
 conn.commit()
 
+# Fonction pour récupérer l'image d'un jeu depuis Steam
+def get_steam_image(steam_link):
+    try:
+        if "store.steampowered.com" in steam_link:
+            game_id = steam_link.split('/app/')[1].split('/')[0]
+            return f"https://cdn.akamai.steamstatic.com/steam/apps/{game_id}/header.jpg"
+    except:
+        return None
+    return None
+
 # Fonction pour ajouter un jeu avec gestion des erreurs
 @bot.command()
-async def ajoutjeu(ctx, name: str, release_date: str, price: str, type: str, duration: str, download_available: str, youtube_link: str, steam_link: str):
+async def ajoutjeu(ctx, name: str, release_date: str, price: str, type: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
     try:
         cursor.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
-                       (name.lower(), release_date, price, type, duration, download_available, youtube_link, steam_link))
+                       (name.lower(), release_date, price, type, duration, cloud_available, youtube_link, steam_link))
         conn.commit()
         message = await ctx.send(f"✅ Jeu '{name}' ajouté avec succès !")
         await asyncio.sleep(600)
@@ -83,9 +94,15 @@ async def on_message(message):
         embed.add_field(name="Prix", value=game_info[2], inline=True)
         embed.add_field(name="Type", value=game_info[3], inline=True)
         embed.add_field(name="Durée de vie", value=game_info[4], inline=True)
-        embed.add_field(name="Téléchargement Disponible", value=game_info[5], inline=True)
-        embed.add_field(name="Gameplay YouTube", value=game_info[6], inline=False)
-        embed.add_field(name="Page Steam", value=game_info[7], inline=False)
+        embed.add_field(name="Disponible en Cloud", value=game_info[5], inline=True)
+        embed.add_field(name="Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+        embed.add_field(name="Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+        
+        # Ajout de l'image du jeu via Steam si disponible
+        steam_image = get_steam_image(game_info[7])
+        if steam_image:
+            embed.set_image(url=steam_image)
+
         bot_message = await message.channel.send(embed=embed)
         await asyncio.sleep(600)
         await bot_message.delete()
