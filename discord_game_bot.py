@@ -103,26 +103,31 @@ async def listejeux(ctx):
 # 📌 Recherche par nom (`!NomDuJeu`)
 @bot.event
 async def on_message(message):
+    """ Recherche un jeu par son nom et affiche sa fiche. """
     if message.author == bot.user:
         return
 
     if message.content.startswith("!"):
         jeu_nom = message.content[1:].strip().lower()
 
-        cursor.execute("SELECT * FROM games WHERE LOWER(name) LIKE %s", (f"%{jeu_nom}%",))
+        cursor.execute("""
+            SELECT name, release_date, price, type, duration, cloud_available, youtube_link, steam_link
+            FROM games WHERE LOWER(name) LIKE %s
+        """, (f"%{jeu_nom}%",))
+
         games_found = cursor.fetchall()
 
         if len(games_found) == 1:
             game_info = games_found[0]  # Récupère la ligne du jeu
 
-            embed = discord.Embed(title=f"🎮 {game_info[1].capitalize()}", color=discord.Color.blue())  # game_info[1] = name
-            embed.add_field(name="📅 Date de sortie", value=game_info[2], inline=False)
-            embed.add_field(name="💰 Prix", value=game_info[3], inline=False)
-            embed.add_field(name="🎮 Type", value=game_info[4].capitalize(), inline=False)
-            embed.add_field(name="⏳ Durée", value=game_info[5], inline=False)
-            embed.add_field(name="☁️ Cloud disponible", value=game_info[6], inline=False)
-            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[7]})", inline=False)
-            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[8]})", inline=False)
+            embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())  # game_info[0] = name
+            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
+            embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
+            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
+            embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
+            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
+            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
 
             await message.channel.send(embed=embed)
 
@@ -148,18 +153,23 @@ async def proposejeu(ctx):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        cursor.execute("SELECT id, name, release_date, price, type, duration, cloud_available, youtube_link, steam_link FROM games WHERE LOWER(name) = %s", (jeu_choisi.lower(),))
+        
+        cursor.execute("""
+            SELECT name, release_date, price, type, duration, cloud_available, youtube_link, steam_link
+            FROM games WHERE LOWER(name) = %s
+        """, (jeu_choisi.lower(),))
+
         game_info = cursor.fetchone()
 
         if game_info:
-            embed = discord.Embed(title=f"🎮 {game_info[1].capitalize()}", color=discord.Color.blue())  # game_info[1] = name
-            embed.add_field(name="📅 Date de sortie", value=game_info[2], inline=False)
-            embed.add_field(name="💰 Prix", value=game_info[3], inline=False)
-            embed.add_field(name="🎮 Type", value=game_info[4].capitalize(), inline=False)
-            embed.add_field(name="⏳ Durée", value=game_info[5], inline=False)
-            embed.add_field(name="☁️ Cloud disponible", value=game_info[6], inline=False)
-            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[7]})", inline=False)
-            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[8]})", inline=False)
+            embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())  # game_info[0] = name
+            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
+            embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
+            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
+            embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
+            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
+            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
 
             await ctx.send(embed=embed)
     else:
