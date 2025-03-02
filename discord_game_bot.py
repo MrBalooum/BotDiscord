@@ -162,5 +162,21 @@ async def proposejeu(ctx):
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
+@bot.command()
+async def commandes(ctx):
+    """ Affiche la liste des commandes disponibles. """
+    commandes_list = """
+**📜 Liste des commandes disponibles :**
+🔹 `!ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → (ADMIN) Ajoute un jeu  
+🔹 `!supprjeu "Nom"` → (ADMIN) Supprime un jeu  
+🔹 `!modifjeu "Nom" "Champ" "NouvelleValeur"` → (ADMIN) Modifie un jeu  
+🔹 `!listejeux` → Affiche tous les jeux enregistrés  
+🔹 `!type "TypeDeJeu"` → Affiche tous les jeux d'un type donné  
+🔹 `!proposejeu` → Propose un jeu aléatoire avec sa fiche  
+🔹 `!commandes` → Affiche cette liste de commandes  
+🔹 **Recherche d’un jeu :** Tape `!NomDuJeu` (ex: `!The Witcher 3`) pour voir sa fiche complète  
+"""
+    await ctx.send(commandes_list)
+
 # Lancer le bot
 bot.run(TOKEN)
