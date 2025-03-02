@@ -18,10 +18,16 @@ TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Connexion à la base de données SQLite
-DB_PATH = "games.db"
-conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+import psycopg2
+
+# Récupération de l'URL de connexion PostgreSQL depuis Railway
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Connexion à la base PostgreSQL
+conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 cursor = conn.cursor()
+
+# Création de la table "games" si elle n'existe pas encore
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     name TEXT PRIMARY KEY, 
                     release_date TEXT, 
@@ -33,9 +39,11 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     steam_link TEXT)''')
 conn.commit()
 
+
 def save_database():
-    """ Sauvegarde et force l'écriture immédiate sur disque. """
+    """ Sauvegarde immédiate des changements dans PostgreSQL """
     conn.commit()
+    print("📂 Base de données sauvegardée avec succès sur Railway.")
     os.fsync(conn)  # 🔥 Force l'écriture des données sur le disque
     print("📂 Base de données sauvegardée avec succès.")
 
@@ -43,9 +51,12 @@ def save_database():
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def modifjeu(ctx, name: str, field: str, new_value: str):
-    cursor.execute(f"UPDATE games SET {field} = ? WHERE LOWER(name) = ?", (new_value, name.lower()))
-    save_database()
-    await ctx.send(f"✅ Jeu '{name}' mis à jour : **{field}** → {new_value}")
+    try:
+        cursor.execute(f"UPDATE games SET {field} = %s WHERE LOWER(name) = %s", (new_value, name.lower()))
+        save_database()  # 🔥 Sauvegarde immédiate
+        await ctx.send(f"✅ Jeu '{name}' mis à jour : **{field}** → {new_value}")
+    except Exception as e:
+        await ctx.send(f"❌ Erreur lors de la modification du jeu : {str(e)}")
 
 # 📌 Ajout d'un jeu (réservé aux admins)
 @bot.command()
@@ -54,21 +65,24 @@ async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, du
     try:
         cursor.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
                        (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link))
-        save_database()
+         save_database()  # 🔥 Sauvegarde immédiate
         await ctx.send(f"✅ Jeu '{name}' ajouté avec succès !")
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:  # 🔥 SQLite devient PostgreSQL
         await ctx.send("❌ Ce jeu existe déjà dans la base de données !")
     except Exception as e:
         await ctx.send(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
-
+        
 # 📌 Supprimer un jeu (réservé aux admins)
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def supprjeu(ctx, name: str):
-    cursor.execute("DELETE FROM games WHERE LOWER(name) = ?", (name.lower(),))
-    save_database()
-    await ctx.send(f"🗑️ Jeu '{name}' supprimé avec succès !")
-
+    try:
+        cursor.execute("DELETE FROM games WHERE LOWER(name) = %s", (name.lower(),))
+        save_database()  # 🔥 Sauvegarde immédiate
+        await ctx.send(f"🗑️ Jeu '{name}' supprimé avec succès !")
+    except Exception as e:
+        await ctx.send(f"❌ Erreur lors de la suppression du jeu : {str(e)}")
+        
 # 📌 Liste des jeux enregistrés
 @bot.command()
 async def listejeux(ctx):
