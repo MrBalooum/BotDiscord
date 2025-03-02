@@ -34,8 +34,9 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
 conn.commit()
 
 def save_database():
-    """ Sauvegarde la base de données immédiatement et force l'écriture sur disque. """
-    conn.commit()  # Force SQLite à écrire immédiatement sur disque
+    """ Sauvegarde et force l'écriture immédiate sur disque. """
+    conn.commit()
+    os.fsync(conn)  # 🔥 Force l'écriture des données sur le disque
     print("📂 Base de données sauvegardée avec succès.")
 
 # 📌 Modifier un jeu (réservé aux admins)
@@ -80,23 +81,20 @@ async def listejeux(ctx):
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
-# 📌 Détection automatique d'un jeu avec `!nom du jeu`
+# 📌 Recherche partielle par nom (`!NomDuJeu`)
 @bot.event
 async def on_message(message):
-    """ Vérifie si un message correspond partiellement au nom d'un jeu et affiche la fiche. """
+    """ Recherche un jeu par son nom partiel et affiche la fiche. """
     if message.author == bot.user:
-        return  # Empêche le bot de répondre à lui-même
+        return
 
-    # Vérifier si le message commence par "!"
     if message.content.startswith("!"):
-        jeu_nom = message.content[1:].strip().lower()  # Retire "!" et met en minuscules
+        jeu_nom = message.content[1:].strip().lower()
 
-        # Recherche des jeux dont le nom contient les mots tapés
         cursor.execute("SELECT * FROM games WHERE LOWER(name) LIKE ?", (f"%{jeu_nom}%",))
         games_found = cursor.fetchall()
 
         if len(games_found) == 1:
-            # Un seul jeu trouvé, on affiche sa fiche
             game_info = games_found[0]
             embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
             embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
@@ -109,12 +107,26 @@ async def on_message(message):
             await message.channel.send(embed=embed)
 
         elif len(games_found) > 1:
-            # Plusieurs jeux trouvés, on affiche une liste
             game_list = "\n".join([f"- {game[0].capitalize()}" for game in games_found])
             await message.channel.send(f"🔍 Plusieurs jeux trouvés :\n```{game_list}```\nTape le nom exact avec `!NomDuJeu` pour voir la fiche.")
 
-    await bot.process_commands(message)  # Permet aux autres commandes de fonctionner
+    await bot.process_commands(message)
 
+# 📌 Recherche par type (`!Type`)
+@bot.command()
+async def type(ctx, game_type: str):
+    """ Affiche tous les jeux correspondant à un type donné. """
+    game_type = game_type.lower().strip()
+
+    cursor.execute("SELECT name FROM games WHERE LOWER(type) LIKE ?", (f"%{game_type}%",))
+    games_found = cursor.fetchall()
+
+    if games_found:
+        game_list = "\n".join([f"- {game[0].capitalize()}" for game in games_found])
+        await ctx.send(f"🎮 **Jeux trouvés pour le type '{game_type.capitalize()}':**\n```{game_list}```")
+    else:
+        await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.")
+        
 # 📌 Proposer un jeu aléatoire avec un bouton pour voir sa fiche
 class JeuButton(discord.ui.View):
     def __init__(self, game_name):
@@ -135,10 +147,7 @@ class JeuButton(discord.ui.View):
             embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
             embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
             embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
-
             await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            await interaction.response.send_message("❌ Le jeu n'a pas été trouvé.", ephemeral=True)
 
 @bot.command()
 async def proposejeu(ctx):
@@ -152,20 +161,6 @@ async def proposejeu(ctx):
         await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=view)
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
-
-# 📌 Commande pour voir toutes les commandes (ajout de la recherche de jeux)
-@bot.command()
-async def commandes(ctx):
-    commandes_list = """
-**📜 Liste des commandes disponibles :**
-🔹 `!ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → (ADMIN) Ajoute un jeu  
-🔹 `!supprjeu "Nom"` → (ADMIN) Supprime un jeu  
-🔹 `!modifjeu "Nom" "Champ" "NouvelleValeur"` → (ADMIN) Modifie un jeu  
-🔹 `!listejeux` → Affiche tous les jeux enregistrés  
-🔹 `!commandes` → Affiche cette liste de commandes  
-🔹 **Recherche d’un jeu :** Tape `!Nom du Jeu` (ex: `!The Witcher 3`) pour voir sa fiche complète  
-"""
-    await ctx.send(commandes_list)
 
 # Lancer le bot
 bot.run(TOKEN)
