@@ -83,7 +83,7 @@ async def listejeux(ctx):
 # 📌 Détection automatique d'un jeu avec `!nom du jeu`
 @bot.event
 async def on_message(message):
-    """ Vérifie si un message correspond au nom d'un jeu et affiche la fiche. """
+    """ Vérifie si un message correspond partiellement au nom d'un jeu et affiche la fiche. """
     if message.author == bot.user:
         return  # Empêche le bot de répondre à lui-même
 
@@ -91,10 +91,13 @@ async def on_message(message):
     if message.content.startswith("!"):
         jeu_nom = message.content[1:].strip().lower()  # Retire "!" et met en minuscules
 
-        cursor.execute("SELECT * FROM games WHERE LOWER(name) = ?", (jeu_nom,))
-        game_info = cursor.fetchone()
+        # Recherche des jeux dont le nom contient les mots tapés
+        cursor.execute("SELECT * FROM games WHERE LOWER(name) LIKE ?", (f"%{jeu_nom}%",))
+        games_found = cursor.fetchall()
 
-        if game_info:
+        if len(games_found) == 1:
+            # Un seul jeu trouvé, on affiche sa fiche
+            game_info = games_found[0]
             embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
             embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
             embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
@@ -103,8 +106,12 @@ async def on_message(message):
             embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
             embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
             embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
-
             await message.channel.send(embed=embed)
+
+        elif len(games_found) > 1:
+            # Plusieurs jeux trouvés, on affiche une liste
+            game_list = "\n".join([f"- {game[0].capitalize()}" for game in games_found])
+            await message.channel.send(f"🔍 Plusieurs jeux trouvés :\n```{game_list}```\nTape le nom exact avec `!NomDuJeu` pour voir la fiche.")
 
     await bot.process_commands(message)  # Permet aux autres commandes de fonctionner
 
