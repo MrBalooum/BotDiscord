@@ -34,15 +34,9 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
 conn.commit()
 
 def save_database():
-    """ Sauvegarde et force l'écriture sur disque. """
+    """ Sauvegarde la base de données pour éviter toute perte. """
     conn.commit()  # Sauvegarde les modifications en mémoire
-    conn.close()   # Ferme la connexion pour forcer l'écriture
     print("📂 Base de données sauvegardée avec succès.")
-
-    # Rétablir la connexion pour les prochaines requêtes
-    global conn, cursor
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
 
 # 📌 Modifier un jeu (réservé aux admins)
 @bot.command()
