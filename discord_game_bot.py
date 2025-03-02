@@ -19,7 +19,8 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Connexion à la base de données SQLite
-conn = sqlite3.connect("games.db")
+DB_PATH = "games.db"
+conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     name TEXT PRIMARY KEY, 
@@ -41,20 +42,22 @@ async def manage_message_lifetime(message, duration=60):
 
     await asyncio.sleep(duration)
     
-    # Vérifie si le message existe encore avant de le supprimer
     try:
         await message.delete()
     except discord.NotFound:
         pass  # Le message est déjà supprimé
 
-    # Met à jour la liste des derniers messages
     last_messages.append(message)
     if len(last_messages) > 2:
         old_message = last_messages.pop(0)
         try:
             await old_message.delete()
         except discord.NotFound:
-            pass  # Message déjà supprimé
+            pass
+
+def save_database():
+    """ Sauvegarde la base de données pour éviter toute perte. """
+    conn.commit()
 
 # 📌 Modifier un jeu (réservé aux admins)
 @bot.command()
@@ -66,7 +69,7 @@ async def modifjeu(ctx, name: str, field: str, new_value: str):
         message = await ctx.send(f"❌ Champ invalide ! Tu peux modifier : {', '.join(valid_fields)}")
     else:
         cursor.execute(f"UPDATE games SET {field} = ? WHERE name = ?", (new_value, name.lower()))
-        conn.commit()
+        save_database()
         message = await ctx.send(f"✅ Jeu '{name}' mis à jour : **{field}** → {new_value}")
 
     await manage_message_lifetime(message)
@@ -79,7 +82,7 @@ async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, du
     try:
         cursor.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
                        (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link))
-        conn.commit()
+        save_database()
         message = await ctx.send(f"✅ Jeu '{name}' ajouté avec succès !")
     except sqlite3.IntegrityError:
         message = await ctx.send("❌ Ce jeu existe déjà dans la base de données !")
@@ -98,7 +101,7 @@ async def supprjeu(ctx, name: str):
 
     if game_exists:
         cursor.execute("DELETE FROM games WHERE name = ?", (name.lower(),))
-        conn.commit()
+        save_database()
         message = await ctx.send(f"🗑️ Jeu '{name}' supprimé avec succès !")
     else:
         message = await ctx.send(f"❌ Jeu '{name}' introuvable.")
@@ -106,20 +109,44 @@ async def supprjeu(ctx, name: str):
     await manage_message_lifetime(message)
     await manage_message_lifetime(ctx.message)
 
-# 📌 Liste des jeux enregistrés
+# 📌 Proposer un jeu avec interaction (corrigé)
+class JeuButton(discord.ui.View):
+    def __init__(self, game_name):
+        super().__init__(timeout=300)
+        self.game_name = game_name
+
+    @discord.ui.button(label="Voir la fiche", style=discord.ButtonStyle.primary)
+    async def show_game_info(self, interaction: discord.Interaction, button: discord.ui.Button):
+        cursor.execute("SELECT * FROM games WHERE name = ?", (self.game_name,))
+        game_info = cursor.fetchone()
+
+        if game_info:
+            embed = discord.Embed(title=game_info[0].capitalize(), color=discord.Color.blue())
+            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=True)
+            embed.add_field(name="💰 Prix", value=game_info[2], inline=True)
+            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=True)
+            embed.add_field(name="⏳ Durée", value=game_info[4], inline=True)
+            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=True)
+            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ Le jeu n'a pas été trouvé.", ephemeral=True)
+
 @bot.command()
-async def listejeux(ctx):
+async def proposejeu(ctx):
     cursor.execute("SELECT name FROM games")
     games = cursor.fetchall()
-    
     if games:
-        game_list = "\n".join([game[0].capitalize() for game in games])
-        message = await ctx.send(f"🎮 **Liste des jeux enregistrés :**\n{game_list}")
+        jeu_choisi = random.choice(games)[0]
+        view = JeuButton(jeu_choisi)
+        message = await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=view)
     else:
         message = await ctx.send("❌ Aucun jeu enregistré.")
 
-    await manage_message_lifetime(message)
-    await manage_message_lifetime(ctx.message)
+    await manage_message_lifetime(message, duration=300)
+    await manage_message_lifetime(ctx.message, duration=300)
 
 # 📌 Commande pour voir toutes les commandes
 @bot.command()
