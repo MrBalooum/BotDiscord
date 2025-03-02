@@ -61,9 +61,16 @@ async def ajoutjeu(ctx, name: str, release_date: str, price: str, type: str, dur
 # Fonction pour supprimer un jeu
 @bot.command()
 async def supprjeu(ctx, name: str):
-    cursor.execute("DELETE FROM games WHERE name = ?", (name.lower(),))
-    conn.commit()
-    message = await ctx.send(f"🗑️ Jeu '{name}' supprimé avec succès !")
+    cursor.execute("SELECT * FROM games WHERE name = ?", (name.lower(),))
+    game_exists = cursor.fetchone()
+
+    if game_exists:
+        cursor.execute("DELETE FROM games WHERE name = ?", (name.lower(),))
+        conn.commit()
+        message = await ctx.send(f"🗑️ Jeu '{name}' supprimé avec succès !")
+    else:
+        message = await ctx.send(f"❌ Jeu '{name}' introuvable dans la base de données.")
+
     await asyncio.sleep(600)
     await message.delete()
     await ctx.message.delete()
