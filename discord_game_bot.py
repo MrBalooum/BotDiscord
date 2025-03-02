@@ -105,17 +105,27 @@ async def listejeux(ctx):
 async def on_message(message):
     if message.author == bot.user:
         return
+
     if message.content.startswith("!"):
         jeu_nom = message.content[1:].strip().lower()
+
         cursor.execute("SELECT * FROM games WHERE LOWER(name) LIKE %s", (f"%{jeu_nom}%",))
         games_found = cursor.fetchall()
+
         if len(games_found) == 1:
-            game_info = games_found[0]
-            embed = discord.Embed(title=f"🎮 {game_info[1].capitalize()}", color=discord.Color.blue())
+            game_info = games_found[0]  # Récupère la ligne du jeu
+
+            embed = discord.Embed(title=f"🎮 {game_info[1].capitalize()}", color=discord.Color.blue())  # game_info[1] = name
             embed.add_field(name="📅 Date de sortie", value=game_info[2], inline=False)
             embed.add_field(name="💰 Prix", value=game_info[3], inline=False)
             embed.add_field(name="🎮 Type", value=game_info[4].capitalize(), inline=False)
+            embed.add_field(name="⏳ Durée", value=game_info[5], inline=False)
+            embed.add_field(name="☁️ Cloud disponible", value=game_info[6], inline=False)
+            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[7]})", inline=False)
+            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[8]})", inline=False)
+
             await message.channel.send(embed=embed)
+
     await bot.process_commands(message)
 
 # 📌 Recherche par type (`!type`)
