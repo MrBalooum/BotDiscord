@@ -82,12 +82,19 @@ async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, du
 @commands.has_permissions(administrator=True)
 async def supprjeu(ctx, name: str):
     try:
-        cursor.execute("DELETE FROM games WHERE LOWER(name) = %s", (name.lower(),))
-        save_database()  # 🔥 Sauvegarde immédiate
-        await ctx.send(f"🗑️ Jeu '{name}' supprimé avec succès !")
+        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (name.lower(),))
+        jeu = cursor.fetchone()
+
+        if jeu:
+            cursor.execute("DELETE FROM games WHERE LOWER(name) = %s", (name.lower(),))
+            save_database()
+            await ctx.send(f"🗑️ Jeu '{name}' supprimé avec succès !")
+        else:
+            await ctx.send(f"❌ Aucun jeu trouvé avec le nom '{name}'.")
+
     except Exception as e:
         await ctx.send(f"❌ Erreur lors de la suppression du jeu : {str(e)}")
-        
+
 # 📌 Liste des jeux enregistrés
 @bot.command()
 async def listejeux(ctx):
