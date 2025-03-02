@@ -181,5 +181,34 @@ async def commandes(ctx):
     await manage_message_lifetime(message)
     await manage_message_lifetime(ctx.message)
 
+@bot.event
+async def on_message(message):
+    """ Vérifie si un message correspond au nom d'un jeu et affiche la fiche. """
+    if message.author == bot.user:
+        return  # Empêche le bot de répondre à lui-même
+
+    # Vérifier si le message correspond à un jeu dans la BDD
+    cursor.execute("SELECT * FROM games WHERE name = ?", (message.content.lower(),))
+    game_info = cursor.fetchone()
+
+    if game_info:
+        embed = discord.Embed(title=game_info[0].capitalize(), color=discord.Color.blue())
+        embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=True)
+        embed.add_field(name="💰 Prix", value=game_info[2], inline=True)
+        embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=True)
+        embed.add_field(name="⏳ Durée", value=game_info[4], inline=True)
+        embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=True)
+        embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+        embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+
+        message_bot = await message.channel.send(embed=embed)
+
+        # Suppression automatique après 60 sec, sauf les derniers messages (5 min)
+        await manage_message_lifetime(message_bot)
+        await manage_message_lifetime(message)
+
+    await bot.process_commands(message)  # Permet aux autres commandes de fonctionner correctement
+
+
 # Lancer le bot
 bot.run(TOKEN)
