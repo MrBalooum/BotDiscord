@@ -107,6 +107,7 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
+    # Vérifie si le message commence par "!" (évite les erreurs)
     if message.content.startswith("!"):
         jeu_nom = message.content[1:].strip().lower()
 
@@ -120,11 +121,8 @@ async def on_message(message):
         if len(games_found) == 1:
             game_info = games_found[0]
 
-            # Récupération de l'image Steam
-            steam_image_url = get_steam_image(game_info[7]) if game_info[7] else None
-
             embed = discord.Embed(
-                title=f"🎮 **{game_info[0].capitalize()}**",  # Titre agrandi
+                title=f"🎮 **{game_info[0].capitalize()}**",  # Titre en gras
                 color=discord.Color.blue()
             )
             embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
@@ -135,19 +133,19 @@ async def on_message(message):
             embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
             embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
 
-            if steam_image_url:
-                embed.set_image(url=steam_image_url)  # Ajoute l'image Steam
-
             await message.channel.send(embed=embed)
-
-    await bot.process_commands(message)
+        else:
+            await bot.process_commands(message)
 
 # 📌 Recherche par type (`!type`)
 @bot.command()
-async def type(ctx, game_type: str):
+async def type(ctx, game_type: str = None):
     """ Affiche tous les jeux correspondant à un type donné. """
-    game_type = game_type.lower().strip()
+    if game_type is None:
+        await ctx.send("❌ Utilisation correcte : `!type NomDuType`\nTape `!types` pour voir tous les types disponibles.")
+        return
 
+    game_type = game_type.lower().strip()
     cursor.execute("SELECT name, type FROM games")
     games_found = cursor.fetchall()
 
