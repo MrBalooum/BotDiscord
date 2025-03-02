@@ -63,14 +63,19 @@ async def modifjeu(ctx, name: str, field: str, new_value: str):
 @commands.has_permissions(administrator=True)
 async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
     try:
-        cursor.execute("INSERT INTO games VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
-                       (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link))
-        save_database()  # 🔥 Sauvegarde immédiate
+        cursor.execute(
+            "INSERT INTO games (name, release_date, price, type, duration, cloud_available, youtube_link, steam_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
+            (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link)
+        )
+        save_database()
         await ctx.send(f"✅ Jeu '{name}' ajouté avec succès !")
-    except psycopg2.IntegrityError:  # 🔥 PostgreSQL
-        await ctx.send("❌ Ce jeu existe déjà dans la base de données !")
+
+    except psycopg2.IntegrityError:
+        await ctx.send(f"❌ Ce jeu existe déjà dans la base de données : **{name}**")
+    except psycopg2.Error as e:
+        await ctx.send(f"❌ Erreur PostgreSQL lors de l'ajout : {e.pgcode} - {e.pgerror}")
     except Exception as e:
-        await ctx.send(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
+        await ctx.send(f"❌ Erreur inattendue : {str(e)}")
         
 # 📌 Supprimer un jeu (réservé aux admins)
 @bot.command()
