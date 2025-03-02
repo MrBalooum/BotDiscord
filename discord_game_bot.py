@@ -59,6 +59,21 @@ def save_database():
     """ Sauvegarde la base de données pour éviter toute perte. """
     conn.commit()
 
+# 📌 Liste des jeux enregistrés (corrigée)
+@bot.command()
+async def listejeux(ctx):
+    cursor.execute("SELECT name FROM games")
+    games = cursor.fetchall()
+
+    if games:
+        game_list = "\n".join([game[0].capitalize() for game in games])
+        message = await ctx.send(f"🎮 **Liste des jeux enregistrés :**\n```{game_list}```")
+    else:
+        message = await ctx.send("❌ Aucun jeu enregistré.")
+
+    await manage_message_lifetime(message)
+    await manage_message_lifetime(ctx.message)
+
 # 📌 Modifier un jeu (réservé aux admins)
 @bot.command()
 @commands.has_permissions(administrator=True)
