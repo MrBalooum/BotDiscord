@@ -142,11 +142,26 @@ async def type(ctx, game_type: str):
 # 📌 Proposer un jeu aléatoire
 @bot.command()
 async def proposejeu(ctx):
+    """ Sélectionne un jeu aléatoire et propose de voir sa fiche. """
     cursor.execute("SELECT name FROM games")
     games = cursor.fetchall()
+
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?")
+        cursor.execute("SELECT id, name, release_date, price, type, duration, cloud_available, youtube_link, steam_link FROM games WHERE LOWER(name) = %s", (jeu_choisi.lower(),))
+        game_info = cursor.fetchone()
+
+        if game_info:
+            embed = discord.Embed(title=f"🎮 {game_info[1].capitalize()}", color=discord.Color.blue())  # game_info[1] = name
+            embed.add_field(name="📅 Date de sortie", value=game_info[2], inline=False)
+            embed.add_field(name="💰 Prix", value=game_info[3], inline=False)
+            embed.add_field(name="🎮 Type", value=game_info[4].capitalize(), inline=False)
+            embed.add_field(name="⏳ Durée", value=game_info[5], inline=False)
+            embed.add_field(name="☁️ Cloud disponible", value=game_info[6], inline=False)
+            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[7]})", inline=False)
+            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[8]})", inline=False)
+
+            await ctx.send(embed=embed)
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
