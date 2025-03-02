@@ -15,7 +15,9 @@ cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     name TEXT PRIMARY KEY, 
                     release_date TEXT, 
-                    description TEXT, 
+                    price TEXT, 
+                    type TEXT, 
+                    duration TEXT, 
                     download_available TEXT, 
                     youtube_link TEXT, 
                     steam_link TEXT)''')
@@ -23,9 +25,10 @@ conn.commit()
 
 # Fonction pour ajouter un jeu avec gestion des erreurs
 @bot.command()
-async def ajoutjeu(ctx, name: str, release_date: str, description: str, download_available: str, youtube_link: str, steam_link: str):
+async def ajoutjeu(ctx, name: str, release_date: str, price: str, type: str, duration: str, download_available: str, youtube_link: str, steam_link: str):
     try:
-        cursor.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?, ?)", (name.lower(), release_date, description, download_available, youtube_link, steam_link))
+        cursor.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+                       (name.lower(), release_date, price, type, duration, download_available, youtube_link, steam_link))
         conn.commit()
         message = await ctx.send(f"✅ Jeu '{name}' ajouté avec succès !")
         await asyncio.sleep(600)  # Supprime après 10 minutes (600 secondes)
@@ -36,12 +39,12 @@ async def ajoutjeu(ctx, name: str, release_date: str, description: str, download
     except Exception as e:
         await ctx.send(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
 
-# Fonction pour modifier la description d'un jeu
+# Fonction pour modifier le type d'un jeu
 @bot.command()
-async def modifjeu(ctx, name: str, new_description: str):
-    cursor.execute("UPDATE games SET description = ? WHERE name = ?", (new_description, name.lower()))
+async def modifjeu(ctx, name: str, new_type: str):
+    cursor.execute("UPDATE games SET type = ? WHERE name = ?", (new_type, name.lower()))
     conn.commit()
-    message = await ctx.send(f"✅ Description de '{name}' mise à jour !")
+    message = await ctx.send(f"✅ Type de '{name}' mis à jour !")
     await asyncio.sleep(600)
     await message.delete()
     await ctx.message.delete()
@@ -58,10 +61,12 @@ async def on_message(message):
     if result:
         embed = discord.Embed(title=result[0].capitalize(), color=discord.Color.blue())
         embed.add_field(name="Date de sortie", value=result[1], inline=True)
-        embed.add_field(name="Description", value=result[2], inline=False)
-        embed.add_field(name="Téléchargement Disponible", value=result[3], inline=True)
-        embed.add_field(name="Gameplay YouTube", value=result[4], inline=False)
-        embed.add_field(name="Page Steam", value=result[5], inline=False)
+        embed.add_field(name="Prix", value=result[2], inline=True)
+        embed.add_field(name="Type", value=result[3], inline=True)
+        embed.add_field(name="Durée de vie", value=result[4], inline=True)
+        embed.add_field(name="Téléchargement Disponible", value=result[5], inline=True)
+        embed.add_field(name="Gameplay YouTube", value=result[6], inline=False)
+        embed.add_field(name="Page Steam", value=result[7], inline=False)
         bot_message = await message.channel.send(embed=embed)
         await asyncio.sleep(600)
         await bot_message.delete()
