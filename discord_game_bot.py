@@ -148,11 +148,18 @@ async def type(ctx, game_type: str):
     """ Affiche tous les jeux correspondant à un type donné. """
     game_type = game_type.lower().strip()
 
-    cursor.execute("SELECT name FROM games WHERE LOWER(type) LIKE %s", (f"%{game_type}%",))
+    cursor.execute("SELECT name, type FROM games")
     games_found = cursor.fetchall()
 
-    if games_found:
-        game_list = "\n".join([f"- {game[0].capitalize()}" for game in games_found])
+    matching_games = []
+
+    for game_name, game_types in games_found:
+        type_list = [t.strip().lower() for t in game_types.split(",")]  # Séparation des types
+        if game_type in type_list:
+            matching_games.append(game_name.capitalize())
+
+    if matching_games:
+        game_list = "\n".join(f"- {game}" for game in matching_games)
         await ctx.send(f"🎮 **Jeux trouvés pour le type '{game_type.capitalize()}':**\n```{game_list}```")
     else:
         await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.")
@@ -163,8 +170,14 @@ async def types(ctx):
     cursor.execute("SELECT DISTINCT type FROM games")
     types_found = cursor.fetchall()
 
-    if types_found:
-        type_list = "\n".join([f"- {type[0].capitalize()}" for type in types_found])
+    unique_types = set()  # Utilisation d'un ensemble pour éviter les doublons
+
+    for row in types_found:
+        types_list = row[0].lower().split(",")  # Séparation des types avec ","
+        unique_types.update([t.strip().capitalize() for t in types_list])  # Suppression des espaces et mise en capitales
+
+    if unique_types:
+        type_list = "\n".join(f"- {t}" for t in sorted(unique_types))  # Trie et affichage propre
         await ctx.send(f"🎮 **Types de jeux disponibles :**\n```{type_list}```\nTape `!type NomDuType` pour voir les jeux correspondants.")
     else:
         await ctx.send("❌ Aucun type de jeu trouvé dans la base.")
