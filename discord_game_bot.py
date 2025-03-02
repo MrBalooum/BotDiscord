@@ -157,6 +157,19 @@ async def type(ctx, game_type: str):
     else:
         await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.")
 
+@bot.command()
+async def types(ctx):
+    """ Affiche tous les types de jeux disponibles dans la base. """
+    cursor.execute("SELECT DISTINCT type FROM games")
+    types_found = cursor.fetchall()
+
+    if types_found:
+        type_list = "\n".join([f"- {type[0].capitalize()}" for type in types_found])
+        await ctx.send(f"🎮 **Types de jeux disponibles :**\n```{type_list}```\nTape `!type "NomDuType"` pour voir les jeux correspondants.")
+    else:
+        await ctx.send("❌ Aucun type de jeu trouvé dans la base.")
+
+
 # 📌 Proposer un jeu aléatoire
 @bot.command()
 async def proposejeu(ctx):
