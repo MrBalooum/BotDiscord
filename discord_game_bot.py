@@ -20,7 +20,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Connexion à la base de données SQLite
 DB_PATH = "games.db"
-conn = sqlite3.connect(DB_PATH)
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     name TEXT PRIMARY KEY, 
@@ -34,8 +34,8 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
 conn.commit()
 
 def save_database():
-    """ Sauvegarde la base de données pour éviter toute perte. """
-    conn.commit()  # Sauvegarde les modifications en mémoire
+    """ Sauvegarde la base de données immédiatement et force l'écriture sur disque. """
+    conn.commit()  # Force SQLite à écrire immédiatement sur disque
     print("📂 Base de données sauvegardée avec succès.")
 
 # 📌 Modifier un jeu (réservé aux admins)
