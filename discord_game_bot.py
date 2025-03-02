@@ -63,11 +63,11 @@ async def modifjeu(ctx, name: str, field: str, new_value: str):
 @commands.has_permissions(administrator=True)
 async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
     try:
-        cursor.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+        cursor.execute("INSERT INTO games VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
                        (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link))
-         save_database()  # 🔥 Sauvegarde immédiate
+        save_database()  # 🔥 Sauvegarde immédiate
         await ctx.send(f"✅ Jeu '{name}' ajouté avec succès !")
-    except psycopg2.IntegrityError:  # 🔥 SQLite devient PostgreSQL
+    except psycopg2.IntegrityError:  # 🔥 PostgreSQL
         await ctx.send("❌ Ce jeu existe déjà dans la base de données !")
     except Exception as e:
         await ctx.send(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
