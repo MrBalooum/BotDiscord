@@ -59,7 +59,7 @@ async def on_message(message):
         embed = discord.Embed(title=result[0].capitalize(), color=discord.Color.blue())
         embed.add_field(name="Date de sortie", value=result[1], inline=True)
         embed.add_field(name="Description", value=result[2], inline=False)
-        embed.add_field(name="Disponible sans DL ?", value=result[3], inline=True)
+        embed.add_field(name="Téléchargement Disponible", value=result[3], inline=True)
         embed.add_field(name="Gameplay YouTube", value=result[4], inline=False)
         embed.add_field(name="Page Steam", value=result[5], inline=False)
         bot_message = await message.channel.send(embed=embed)
