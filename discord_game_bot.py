@@ -90,6 +90,42 @@ async def modifjeu(ctx, name: str, field: str, new_value: str):
     await manage_message_lifetime(message)
     await manage_message_lifetime(ctx.message)
 
+@bot.command()
+async def recherche(ctx, lettre: str):
+    """ Affiche tous les jeux et commandes commençant par une lettre donnée. """
+    if len(lettre) != 1 or not lettre.isalpha():
+        message = await ctx.send("❌ Merci de fournir une seule lettre (ex: `!A`)")
+        await manage_message_lifetime(message)
+        return
+
+    lettre = lettre.lower()
+
+    # Recherche des jeux
+    cursor.execute("SELECT name FROM games WHERE name LIKE ?", (lettre + "%",))
+    jeux = cursor.fetchall()
+
+    # Recherche des commandes
+    commandes_dispo = [cmd.name for cmd in bot.commands if cmd.name.startswith(lettre)]
+
+    # Construction du message
+    embed = discord.Embed(title=f"🔍 Résultats pour `{lettre.upper()}`", color=discord.Color.blue())
+
+    if jeux:
+        jeux_list = "\n".join([jeu[0].capitalize() for jeu in jeux])
+        embed.add_field(name="🎮 Jeux trouvés", value=f"```{jeux_list}```", inline=False)
+    else:
+        embed.add_field(name="🎮 Jeux trouvés", value="❌ Aucun jeu trouvé.", inline=False)
+
+    if commandes_dispo:
+        commandes_list = "\n".join([f"!{cmd}" for cmd in commandes_dispo])
+        embed.add_field(name="⚙️ Commandes trouvées", value=f"```{commandes_list}```", inline=False)
+    else:
+        embed.add_field(name="⚙️ Commandes trouvées", value="❌ Aucune commande trouvée.", inline=False)
+
+    message = await ctx.send(embed=embed)
+    await manage_message_lifetime(message)
+    await manage_message_lifetime(ctx.message)
+
 # 📌 Ajout d'un jeu (réservé aux admins)
 @bot.command()
 @commands.has_permissions(administrator=True)
