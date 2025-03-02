@@ -4,7 +4,14 @@ import sqlite3
 import asyncio
 import os
 import random
-import requests
+
+# Vérification et installation de requests si manquant
+try:
+    import requests
+except ModuleNotFoundError:
+    import subprocess
+    subprocess.run(["pip", "install", "requests"])
+    import requests
 
 # Configuration du bot
 TOKEN = os.getenv("TOKEN")
