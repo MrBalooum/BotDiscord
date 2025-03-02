@@ -32,18 +32,33 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     steam_link TEXT)''')
 conn.commit()
 
-# Fonction pour récupérer l'image d'un jeu depuis Steam
-def get_steam_image(steam_link):
-    try:
-        if "store.steampowered.com" in steam_link:
-            game_id = steam_link.split('/app/')[1].split('/')[0]
-            return f"https://cdn.akamai.steamstatic.com/steam/apps/{game_id}/header.jpg"
-    except:
-        return None
-    return None
+# Liste pour suivre les derniers messages (bot + utilisateur)
+last_messages = []
 
-# 📌 Ajout d'un jeu avec plusieurs types
+async def manage_message_lifetime(message, duration=60):
+    """ Supprime les messages après un certain temps, sauf les 2 derniers """
+    global last_messages
+
+    await asyncio.sleep(duration)
+    
+    # Vérifie si le message existe encore avant de le supprimer
+    try:
+        await message.delete()
+    except discord.NotFound:
+        pass  # Le message est déjà supprimé
+
+    # Met à jour la liste des derniers messages
+    last_messages.append(message)
+    if len(last_messages) > 2:
+        old_message = last_messages.pop(0)
+        try:
+            await old_message.delete()
+        except discord.NotFound:
+            pass  # Message déjà supprimé
+
+# 📌 Ajout d'un jeu (réservé aux admins)
 @bot.command()
+@commands.has_permissions(administrator=True)
 async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
     try:
         cursor.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
@@ -55,12 +70,12 @@ async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, du
     except Exception as e:
         message = await ctx.send(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
 
-    await asyncio.sleep(60)
-    await message.delete()
-    await ctx.message.delete()
+    await manage_message_lifetime(message)
+    await manage_message_lifetime(ctx.message)
 
-# 📌 Supprimer un jeu
+# 📌 Supprimer un jeu (réservé aux admins)
 @bot.command()
+@commands.has_permissions(administrator=True)
 async def supprjeu(ctx, name: str):
     cursor.execute("SELECT * FROM games WHERE name = ?", (name.lower(),))
     game_exists = cursor.fetchone()
@@ -72,42 +87,23 @@ async def supprjeu(ctx, name: str):
     else:
         message = await ctx.send(f"❌ Jeu '{name}' introuvable.")
 
-    await asyncio.sleep(60)
-    await message.delete()
-    await ctx.message.delete()
+    await manage_message_lifetime(message)
+    await manage_message_lifetime(ctx.message)
 
-# 📌 Liste des types disponibles
+# 📌 Liste des jeux enregistrés
 @bot.command()
-async def type(ctx):
-    cursor.execute("SELECT DISTINCT type FROM games")
-    types = cursor.fetchall()
-    if types:
-        type_list = set()
-        for t in types:
-            type_list.update(t[0].split(","))
-        message = await ctx.send(f"📌 **Types de jeux disponibles :**\n{', '.join(sorted(type_list))}")
-    else:
-        message = await ctx.send("❌ Aucun type enregistré.")
-
-    await asyncio.sleep(60)
-    await message.delete()
-    await ctx.message.delete()
-
-# 📌 Afficher les jeux d'un type spécifique
-@bot.command()
-async def typejeux(ctx, game_type: str):
-    cursor.execute("SELECT name FROM games WHERE type LIKE ?", (f"%{game_type.lower()}%",))
+async def listejeux(ctx):
+    cursor.execute("SELECT name FROM games")
     games = cursor.fetchall()
-
+    
     if games:
         game_list = "\n".join([game[0].capitalize() for game in games])
-        message = await ctx.send(f"🎮 **Jeux du type '{game_type.capitalize()}' :**\n{game_list}")
+        message = await ctx.send(f"🎮 **Liste des jeux enregistrés :**\n{game_list}")
     else:
-        message = await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.")
+        message = await ctx.send("❌ Aucun jeu enregistré.")
 
-    await asyncio.sleep(60)
-    await message.delete()
-    await ctx.message.delete()
+    await manage_message_lifetime(message)
+    await manage_message_lifetime(ctx.message)
 
 # 📌 Proposer un jeu avec interaction
 class JeuButton(discord.ui.View):
@@ -130,10 +126,6 @@ class JeuButton(discord.ui.View):
             embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
             embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
 
-            steam_image = get_steam_image(game_info[7])
-            if steam_image:
-                embed.set_image(url=steam_image)
-
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             await interaction.response.send_message("❌ Le jeu n'a pas été trouvé.", ephemeral=True)
@@ -149,17 +141,16 @@ async def proposejeu(ctx):
     else:
         message = await ctx.send("❌ Aucun jeu enregistré.")
 
-    await asyncio.sleep(60)
-    await message.delete()
-    await ctx.message.delete()
+    await manage_message_lifetime(message, duration=300)
+    await manage_message_lifetime(ctx.message, duration=300)
 
 # 📌 Commande pour voir toutes les commandes
 @bot.command()
 async def commandes(ctx):
     commandes_list = """
 **📜 Liste des commandes disponibles :**
-🔹 `!ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → Ajoute un jeu  
-🔹 `!supprjeu "Nom"` → Supprime un jeu  
+🔹 `!ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → (ADMIN) Ajoute un jeu  
+🔹 `!supprjeu "Nom"` → (ADMIN) Supprime un jeu  
 🔹 `!listejeux` → Affiche tous les jeux  
 🔹 `!proposejeu` → Propose un jeu interactif  
 🔹 `!type` → Affiche tous les types de jeux enregistrés  
@@ -167,9 +158,8 @@ async def commandes(ctx):
 🔹 `!commandes` → Affiche cette liste de commandes
 """
     message = await ctx.send(commandes_list)
-    await asyncio.sleep(60)
-    await message.delete()
-    await ctx.message.delete()
+    await manage_message_lifetime(message)
+    await manage_message_lifetime(ctx.message)
 
 # Lancer le bot
 bot.run(TOKEN)
