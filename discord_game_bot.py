@@ -45,10 +45,21 @@ def save_database():
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def modifjeu(ctx, name: str, field: str, new_value: str):
+    """ Modifie une valeur d'un jeu existant """
     try:
-        cursor.execute(f"UPDATE games SET {field} = %s WHERE LOWER(name) = %s", (new_value, name.lower()))
-        save_database()
+        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (name.lower(),))
+        jeu = cursor.fetchone()
+
+        if not jeu:
+            await ctx.send(f"❌ Aucun jeu trouvé avec le nom '{name}'.")
+            return
+
+        query = f"UPDATE games SET {field} = %s WHERE LOWER(name) = %s"
+        cursor.execute(query, (new_value, name.lower()))
+        conn.commit()
+
         await ctx.send(f"✅ Jeu '{name}' mis à jour : **{field}** → {new_value}")
+
     except Exception as e:
         await ctx.send(f"❌ Erreur lors de la modification du jeu : {str(e)}")
 
