@@ -105,7 +105,7 @@ async def on_message(message):
     if message.content.startswith("!"):
         jeu_nom = message.content[1:].strip().lower()
 
-        cursor.execute("SELECT * FROM games WHERE LOWER(name) LIKE ?", (f"%{jeu_nom}%",))
+        cursor.execute("SELECT * FROM games WHERE LOWER(name) LIKE %s", (f"%{jeu_nom}%",))
         games_found = cursor.fetchall()
 
         if len(games_found) == 1:
