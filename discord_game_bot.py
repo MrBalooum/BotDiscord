@@ -58,71 +58,16 @@ async def manage_message_lifetime(message, duration=60):
 def save_database():
     """ Sauvegarde la base de données pour éviter toute perte. """
     conn.commit()
-
-# 📌 Liste des jeux enregistrés (corrigée)
-@bot.command()
-async def listejeux(ctx):
-    cursor.execute("SELECT name FROM games")
-    games = cursor.fetchall()
-
-    if games:
-        game_list = "\n".join([game[0].capitalize() for game in games])
-        message = await ctx.send(f"🎮 **Liste des jeux enregistrés :**\n```{game_list}```")
-    else:
-        message = await ctx.send("❌ Aucun jeu enregistré.")
-
-    await manage_message_lifetime(message)
-    await manage_message_lifetime(ctx.message)
+    print("📂 Base de données sauvegardée avec succès.")
 
 # 📌 Modifier un jeu (réservé aux admins)
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def modifjeu(ctx, name: str, field: str, new_value: str):
-    valid_fields = ["release_date", "price", "type", "duration", "cloud_available", "youtube_link", "steam_link"]
-    
-    if field not in valid_fields:
-        message = await ctx.send(f"❌ Champ invalide ! Tu peux modifier : {', '.join(valid_fields)}")
-    else:
-        cursor.execute(f"UPDATE games SET {field} = ? WHERE name = ?", (new_value, name.lower()))
-        save_database()
-        message = await ctx.send(f"✅ Jeu '{name}' mis à jour : **{field}** → {new_value}")
+    cursor.execute(f"UPDATE games SET {field} = ? WHERE LOWER(name) = ?", (new_value, name.lower()))
+    save_database()
+    message = await ctx.send(f"✅ Jeu '{name}' mis à jour : **{field}** → {new_value}")
 
-    await manage_message_lifetime(message)
-    await manage_message_lifetime(ctx.message)
-
-@bot.command()
-async def recherche(ctx, lettre: str):
-    """ Affiche tous les jeux et commandes commençant par une lettre donnée. """
-    if len(lettre) != 1 or not lettre.isalpha():
-        message = await ctx.send("❌ Merci de fournir une seule lettre (ex: `!A`)")
-        await manage_message_lifetime(message)
-        return
-
-    lettre = lettre.lower()
-
-    # Recherche des jeux
-    cursor.execute("SELECT name FROM games WHERE name LIKE ?", (lettre + "%",))
-    jeux = cursor.fetchall()
-
-    # Recherche des commandes
-    commandes_dispo = [cmd.name for cmd in bot.commands if cmd.name.startswith(lettre)]
-
-    # Construction du message
-    embed = discord.Embed(title=f"🔍 Résultats pour `{lettre.upper()}`", color=discord.Color.blue())
-
-    if jeux:
-        jeux_list = "\n".join([jeu[0].capitalize() for jeu in jeux])
-        embed.add_field(name="🎮 Jeux trouvés", value=f"```{jeux_list}```", inline=False)
-    else:
-        embed.add_field(name="🎮 Jeux trouvés", value="❌ Aucun jeu trouvé.", inline=False)
-
-    if commandes_dispo:
-        commandes_list = "\n".join([f"!{cmd}" for cmd in commandes_dispo])
-        embed.add_field(name="⚙️ Commandes trouvées", value=f"```{commandes_list}```", inline=False)
-    else:
-        embed.add_field(name="⚙️ Commandes trouvées", value="❌ Aucune commande trouvée.", inline=False)
-
-    message = await ctx.send(embed=embed)
     await manage_message_lifetime(message)
     await manage_message_lifetime(ctx.message)
 
@@ -147,57 +92,58 @@ async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, du
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def supprjeu(ctx, name: str):
-    cursor.execute("SELECT * FROM games WHERE name = ?", (name.lower(),))
-    game_exists = cursor.fetchone()
-
-    if game_exists:
-        cursor.execute("DELETE FROM games WHERE name = ?", (name.lower(),))
-        save_database()
-        message = await ctx.send(f"🗑️ Jeu '{name}' supprimé avec succès !")
-    else:
-        message = await ctx.send(f"❌ Jeu '{name}' introuvable.")
+    cursor.execute("DELETE FROM games WHERE LOWER(name) = ?", (name.lower(),))
+    save_database()
+    message = await ctx.send(f"🗑️ Jeu '{name}' supprimé avec succès !")
 
     await manage_message_lifetime(message)
     await manage_message_lifetime(ctx.message)
 
-# 📌 Proposer un jeu avec interaction (corrigé)
-class JeuButton(discord.ui.View):
-    def __init__(self, game_name):
-        super().__init__(timeout=300)
-        self.game_name = game_name
-
-    @discord.ui.button(label="Voir la fiche", style=discord.ButtonStyle.primary)
-    async def show_game_info(self, interaction: discord.Interaction, button: discord.ui.Button):
-        cursor.execute("SELECT * FROM games WHERE name = ?", (self.game_name,))
-        game_info = cursor.fetchone()
-
-        if game_info:
-            embed = discord.Embed(title=game_info[0].capitalize(), color=discord.Color.blue())
-            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=True)
-            embed.add_field(name="💰 Prix", value=game_info[2], inline=True)
-            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=True)
-            embed.add_field(name="⏳ Durée", value=game_info[4], inline=True)
-            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=True)
-            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
-            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
-
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            await interaction.response.send_message("❌ Le jeu n'a pas été trouvé.", ephemeral=True)
-
+# 📌 Liste des jeux enregistrés
 @bot.command()
-async def proposejeu(ctx):
+async def listejeux(ctx):
     cursor.execute("SELECT name FROM games")
     games = cursor.fetchall()
+
     if games:
-        jeu_choisi = random.choice(games)[0]
-        view = JeuButton(jeu_choisi)
-        message = await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=view)
+        game_list = "\n".join([game[0].capitalize() for game in games])
+        message = await ctx.send(f"🎮 **Liste des jeux enregistrés :**\n```{game_list}```")
     else:
         message = await ctx.send("❌ Aucun jeu enregistré.")
 
-    await manage_message_lifetime(message, duration=300)
-    await manage_message_lifetime(ctx.message, duration=300)
+    await manage_message_lifetime(message)
+    await manage_message_lifetime(ctx.message)
+
+# 📌 Détection automatique d'un jeu avec `!nom du jeu`
+@bot.event
+async def on_message(message):
+    """ Vérifie si un message correspond au nom d'un jeu et affiche la fiche. """
+    if message.author == bot.user:
+        return  # Empêche le bot de répondre à lui-même
+
+    # Vérifier si le message commence par "!"
+    if message.content.startswith("!"):
+        jeu_nom = message.content[1:].strip().lower()  # Retire le "!" et met en minuscules
+
+        cursor.execute("SELECT * FROM games WHERE LOWER(name) = ?", (jeu_nom,))
+        game_info = cursor.fetchone()
+
+        if game_info:
+            embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
+            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
+            embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
+            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
+            embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
+            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
+            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+
+            message_bot = await message.channel.send(embed=embed)
+
+            await manage_message_lifetime(message_bot)
+            await manage_message_lifetime(message)
+
+    await bot.process_commands(message)  # Permet aux autres commandes de fonctionner
 
 # 📌 Commande pour voir toutes les commandes
 @bot.command()
@@ -208,43 +154,11 @@ async def commandes(ctx):
 🔹 `!supprjeu "Nom"` → (ADMIN) Supprime un jeu  
 🔹 `!modifjeu "Nom" "Champ" "NouvelleValeur"` → (ADMIN) Modifie un jeu  
 🔹 `!listejeux` → Affiche tous les jeux  
-🔹 `!proposejeu` → Propose un jeu interactif  
-🔹 `!type` → Affiche tous les types de jeux enregistrés  
-🔹 `!typejeux "Type"` → Affiche tous les jeux d'un type donné  
 🔹 `!commandes` → Affiche cette liste de commandes
 """
     message = await ctx.send(commandes_list)
     await manage_message_lifetime(message)
     await manage_message_lifetime(ctx.message)
-
-@bot.event
-async def on_message(message):
-    """ Vérifie si un message correspond au nom d'un jeu et affiche la fiche. """
-    if message.author == bot.user:
-        return  # Empêche le bot de répondre à lui-même
-
-    # Vérifier si le message correspond à un jeu dans la BDD
-    cursor.execute("SELECT * FROM games WHERE name = ?", (message.content.lower(),))
-    game_info = cursor.fetchone()
-
-    if game_info:
-        embed = discord.Embed(title=game_info[0].capitalize(), color=discord.Color.blue())
-        embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=True)
-        embed.add_field(name="💰 Prix", value=game_info[2], inline=True)
-        embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=True)
-        embed.add_field(name="⏳ Durée", value=game_info[4], inline=True)
-        embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=True)
-        embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
-        embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
-
-        message_bot = await message.channel.send(embed=embed)
-
-        # Suppression automatique après 60 sec, sauf les derniers messages (5 min)
-        await manage_message_lifetime(message_bot)
-        await manage_message_lifetime(message)
-
-    await bot.process_commands(message)  # Permet aux autres commandes de fonctionner correctement
-
 
 # Lancer le bot
 bot.run(TOKEN)
