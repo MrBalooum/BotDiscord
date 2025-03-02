@@ -121,10 +121,11 @@ async def on_message(message):
     if message.author == bot.user:
         return  # Empêche le bot de répondre à lui-même
 
-    # Vérifier si le message commence par "!"
+    # Vérifier si le message commence par "!" et extraire le nom du jeu sans les espaces en trop
     if message.content.startswith("!"):
-        jeu_nom = message.content[1:].strip().lower()  # Retire le "!" et met en minuscules
+        jeu_nom = message.content[1:].strip().lower()  # Retire "!" et met en minuscules
 
+        # Vérifier dans la base de données en ignorant la casse
         cursor.execute("SELECT * FROM games WHERE LOWER(name) = ?", (jeu_nom,))
         game_info = cursor.fetchone()
 
@@ -140,10 +141,12 @@ async def on_message(message):
 
             message_bot = await message.channel.send(embed=embed)
 
+            # Suppression automatique après 60 sec, sauf les derniers messages (5 min)
             await manage_message_lifetime(message_bot)
             await manage_message_lifetime(message)
 
     await bot.process_commands(message)  # Permet aux autres commandes de fonctionner
+nner
 
 # 📌 Commande pour voir toutes les commandes
 @bot.command()
