@@ -103,7 +103,7 @@ async def listejeux(ctx):
 # 📌 Recherche par nom (`!NomDuJeu`)
 @bot.event
 async def on_message(message):
-    """ Recherche un jeu par son nom et affiche sa fiche. """
+    """ Recherche un jeu par son nom et affiche la fiche. """
     if message.author == bot.user:
         return
 
@@ -118,9 +118,15 @@ async def on_message(message):
         games_found = cursor.fetchall()
 
         if len(games_found) == 1:
-            game_info = games_found[0]  # Récupère la ligne du jeu
+            game_info = games_found[0]
 
-            embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())  # game_info[0] = name
+            # Récupération de l'image Steam
+            steam_image_url = get_steam_image(game_info[7]) if game_info[7] else None
+
+            embed = discord.Embed(
+                title=f"🎮 **{game_info[0].capitalize()}**",  # Titre agrandi
+                color=discord.Color.blue()
+            )
             embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
             embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
             embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
@@ -129,6 +135,9 @@ async def on_message(message):
             embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
             embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
 
+            if steam_image_url:
+                embed.set_image(url=steam_image_url)  # Ajoute l'image Steam
+
             await message.channel.send(embed=embed)
 
     await bot.process_commands(message)
@@ -136,8 +145,12 @@ async def on_message(message):
 # 📌 Recherche par type (`!type`)
 @bot.command()
 async def type(ctx, game_type: str):
+    """ Affiche tous les jeux correspondant à un type donné. """
+    game_type = game_type.lower().strip()
+
     cursor.execute("SELECT name FROM games WHERE LOWER(type) LIKE %s", (f"%{game_type}%",))
     games_found = cursor.fetchall()
+
     if games_found:
         game_list = "\n".join([f"- {game[0].capitalize()}" for game in games_found])
         await ctx.send(f"🎮 **Jeux trouvés pour le type '{game_type.capitalize()}':**\n```{game_list}```")
@@ -162,7 +175,12 @@ async def proposejeu(ctx):
         game_info = cursor.fetchone()
 
         if game_info:
-            embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())  # game_info[0] = name
+            steam_image_url = get_steam_image(game_info[7]) if game_info[7] else None
+
+            embed = discord.Embed(
+                title=f"🎮 **{game_info[0].capitalize()}**",  # Titre agrandi
+                color=discord.Color.blue()
+            )
             embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
             embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
             embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
@@ -171,9 +189,22 @@ async def proposejeu(ctx):
             embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
             embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
 
+            if steam_image_url:
+                embed.set_image(url=steam_image_url)  # Ajoute l'image Steam
+
             await ctx.send(embed=embed)
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
+
+def get_steam_image(steam_link):
+    """ Récupère l'image d'un jeu depuis Steam. """
+    try:
+        if "store.steampowered.com" in steam_link:
+            game_id = steam_link.split('/app/')[1].split('/')[0]
+            return f"https://cdn.akamai.steamstatic.com/steam/apps/{game_id}/header.jpg"
+    except:
+        return None
+    return None
 
 # 📌 Commandes disponibles
 @bot.command()
