@@ -146,8 +146,7 @@ async def on_message(message):
             await manage_message_lifetime(message)
 
     await bot.process_commands(message)  # Permet aux autres commandes de fonctionner
-nner
-
+    
 # 📌 Commande pour voir toutes les commandes
 @bot.command()
 async def commandes(ctx):
