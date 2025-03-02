@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import sqlite3
 import asyncio
+import os
 
 # Configuration du bot
 TOKEN = os.getenv("TOKEN")
@@ -13,17 +14,18 @@ conn = sqlite3.connect("games.db")
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     name TEXT PRIMARY KEY, 
-                    description TEXT, 
                     release_date TEXT, 
-                    price TEXT, 
-                    youtube_link TEXT)''')
+                    description TEXT, 
+                    download_available TEXT, 
+                    youtube_link TEXT, 
+                    steam_link TEXT)''')
 conn.commit()
 
 # Fonction pour ajouter un jeu avec gestion des erreurs
 @bot.command()
-async def ajoutjeu(ctx, name: str, description: str, release_date: str, price: str, youtube_link: str):
+async def ajoutjeu(ctx, name: str, release_date: str, description: str, download_available: str, youtube_link: str, steam_link: str):
     try:
-        cursor.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?)", (name.lower(), description, release_date, price, youtube_link))
+        cursor.execute("INSERT INTO games VALUES (?, ?, ?, ?, ?, ?)", (name.lower(), release_date, description, download_available, youtube_link, steam_link))
         conn.commit()
         message = await ctx.send(f"✅ Jeu '{name}' ajouté avec succès !")
         await asyncio.sleep(600)  # Supprime après 10 minutes (600 secondes)
@@ -55,10 +57,11 @@ async def on_message(message):
     
     if result:
         embed = discord.Embed(title=result[0].capitalize(), color=discord.Color.blue())
-        embed.add_field(name="Description", value=result[1], inline=False)
-        embed.add_field(name="Date de sortie", value=result[2], inline=True)
-        embed.add_field(name="Prix sur Steam", value=result[3], inline=True)
+        embed.add_field(name="Date de sortie", value=result[1], inline=True)
+        embed.add_field(name="Description", value=result[2], inline=False)
+        embed.add_field(name="Téléchargement Disponible", value=result[3], inline=True)
         embed.add_field(name="Gameplay YouTube", value=result[4], inline=False)
+        embed.add_field(name="Page Steam", value=result[5], inline=False)
         bot_message = await message.channel.send(embed=embed)
         await asyncio.sleep(600)
         await bot_message.delete()
