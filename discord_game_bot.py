@@ -24,7 +24,7 @@ import psycopg2
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Connexion à la base PostgreSQL
-conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+conn = psycopg2.connect(DATABASE_URL, sslmode="require", client_encoding="UTF8")
 cursor = conn.cursor()
 
 # Création de la table "games" si elle n'existe pas encore
