@@ -233,6 +233,25 @@ async def listejeux(interaction: discord.Interaction):
 
     except Exception as e:
         await interaction.response.send_message(f"❌ Erreur lors de la récupération des jeux : {str(e)}")
+
+@bot.tree.command(name="type")
+async def type_command(interaction: discord.Interaction, game_type: str):
+    """ Affiche tous les jeux correspondant à un type donné. """
+    game_type = game_type.lower().strip()
+    cursor.execute("SELECT name, type FROM games")
+    games_found = cursor.fetchall()
+
+    matching_games = []
+    for game_name, game_types in games_found:
+        type_list = [t.strip().lower() for t in game_types.split(",")]
+        if game_type in type_list:
+            matching_games.append(game_name.capitalize())
+
+    if matching_games:
+        game_list = "\n".join(f"- {game}" for game in matching_games)
+        await interaction.response.send_message(f"🎮 **Jeux trouvés pour le type '{game_type.capitalize()}':**\n```{game_list}```")
+    else:
+        await interaction.response.send_message(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.")
         
 # 📌 Recherche par nom (`/NomDuJeu`)
 @bot.event
