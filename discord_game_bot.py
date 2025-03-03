@@ -101,15 +101,17 @@ async def supprjeu(ctx, name: str):
 @bot.command(aliases=["Listejeux", "listejeu", "Listejeu", "listejeux"])
 async def listejeux(ctx):
     """ Affiche tous les jeux enregistrés, triés par ordre alphabétique. """
-    cursor.execute("SELECT name FROM games ORDER BY LOWER(name) ASC")
-    games = cursor.fetchall()
+    try:
+        cursor.execute("SELECT name FROM games ORDER BY LOWER(name) ASC")
+        games = cursor.fetchall()
 
-    if games:
-        game_list = "\n".join([game[0].capitalize() for game in games])
-        await ctx.send(f"🎮 **Liste des jeux enregistrés (triée A-Z) :**\n```{game_list}```")
-    else:
-        await ctx.send("❌ Aucun jeu enregistré.")
-except Exception as e:
+        if games:
+            game_list = "\n".join([game[0].capitalize() for game in games])
+            await ctx.send(f"🎮 **Liste des jeux enregistrés (triée A-Z) :**\n```{game_list}```")
+        else:
+            await ctx.send("❌ Aucun jeu enregistré.")
+
+    except Exception as e:
         await ctx.send(f"❌ Erreur lors de la récupération des jeux : {str(e)}")
 
 # 📌 Recherche par nom (`!NomDuJeu`)
