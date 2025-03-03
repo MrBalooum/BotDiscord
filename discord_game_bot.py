@@ -17,7 +17,6 @@ except ModuleNotFoundError:
 TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
-bot.tree = discord.app_commands.CommandTree(bot)  # Active les commandes slash
 
 # Connexion à PostgreSQL
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -40,10 +39,12 @@ conn.commit()
 @bot.event
 async def on_ready():
     try:
-        await bot.tree.sync()  # 🔥 Force la synchro des commandes
+        await bot.tree.sync()  # 🔥 Synchronisation des commandes slash
         print("✅ Commandes slash synchronisées avec Discord !")
     except Exception as e:
         print(f"❌ Erreur de synchronisation des commandes slash : {e}")
+
+    print(f"🤖 Bot connecté en tant que {bot.user}")
 
 class CommandesDropdown(discord.ui.Select):
     def __init__(self, is_admin):
