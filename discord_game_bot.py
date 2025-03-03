@@ -202,63 +202,61 @@ async def supprdemande(interaction: discord.Interaction, game_name: str):
 @bot.tree.command(name="modifjeu")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
 async def modifjeu(interaction: discord.Interaction, nom: str, champ: str, nouvelle_valeur: str):
-    """Modifie un champ spécifique d'un jeu.
+    """
+    Modifie un champ spécifique d'un jeu.
     
     Les champs disponibles sont :
-    - sortie
+    - sortie   (pour la date de sortie)
     - prix
     - type
-    - durée
-    - cloud
-    - youtube
-    - steam
+    - durée    (pour la durée)
+    - cloud    (pour cloud_available)
+    - youtube  (pour youtube_link)
+    - steam    (pour steam_link)
     """
     try:
-        nom = nom.strip().lower()
-        # Utilisation de "nom" en minuscules (sans guillemets) car la table a été créée sans guillemets explicites
-        cursor.execute('SELECT * FROM games WHERE LOWER(nom) LIKE %s', (f"%{nom}%",))
+        # Nettoyage du nom saisi par l'utilisateur
+        nom_clean = nom.strip().lower()
+        # Utilisation de la colonne "name" puisque la table existe déjà avec des colonnes en anglais
+        cursor.execute('SELECT * FROM games WHERE LOWER(name) LIKE %s', (f"%{nom_clean}%",))
         jeu = cursor.fetchone()
-
         if not jeu:
+            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{nom.capitalize()}'.", ephemeral=True)
+            return
+
+        # Mapping entre le nom du champ en français et le nom effectif de la colonne en anglais
+        mapping = {
+            "sortie": "release_date",
+            "prix": "price",
+            "type": "type",
+            "durée": "duration",
+            "duree": "duration",  # Pour accepter aussi "duree" sans accent
+            "cloud": "cloud_available",
+            "youtube": "youtube_link",
+            "steam": "steam_link"
+        }
+        champ_clean = champ.strip().lower()
+        if champ_clean not in mapping:
             await interaction.response.send_message(
-                f"❌ Aucun jeu trouvé avec le nom '{nom.capitalize()}'.", ephemeral=True
+                f"❌ Le champ '{champ}' n'est pas valide. Champs disponibles : {', '.join(mapping.keys())}",
+                ephemeral=True
             )
             return
 
-        valid_fields = ["sortie", "prix", "type", "durée", "cloud", "youtube", "steam"]
-
-        # Gestion d'alias pour certains champs
-        if champ.lower() in ["date", "datesortie", "date de sortie"]:
-            champ = "sortie"
-        elif champ.lower() in ["cloud_disponible", "cloud"]:
-            champ = "cloud"
-        elif champ.lower() in ["durée", "duree"]:
-            champ = "durée"
-        elif champ.lower() in ["youtube_link", "youtube"]:
-            champ = "youtube"
-        elif champ.lower() in ["steam_link", "steam"]:
-            champ = "steam"
-
-        if champ.lower() not in valid_fields:
-            await interaction.response.send_message(
-                f"❌ Le champ '{champ}' n'est pas valide. Champs disponibles : {', '.join(valid_fields)}", ephemeral=True
-            )
-            return
-
-        # Pour la mise à jour, le nom du champ (s'il contient des espaces ou accents) est encadré par des guillemets doubles.
-        query = f'UPDATE games SET "{champ}" = %s WHERE LOWER(nom) LIKE %s'
-        cursor.execute(query, (nouvelle_valeur, f"%{nom}%"))
+        actual_field = mapping[champ_clean]
+        query = f'UPDATE games SET {actual_field} = %s WHERE LOWER(name) LIKE %s'
+        cursor.execute(query, (nouvelle_valeur, f"%{nom_clean}%"))
         conn.commit()
 
         await interaction.response.send_message(
-            f"✅ Jeu '{jeu[1].capitalize()}' mis à jour : **{champ}** → {nouvelle_valeur}"
+            f"✅ Jeu '{jeu[1].capitalize()}' mis à jour : **{champ_clean}** → {nouvelle_valeur}"
         )
 
     except Exception as e:
         await interaction.response.send_message(
             f"❌ Erreur lors de la modification du jeu : {str(e)}", ephemeral=True
         )
-
+        
 # 📌 Ajouter un jeu
 @bot.tree.command(name="ajoutjeu")
 @commands.has_permissions(administrator=True)
