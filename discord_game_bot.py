@@ -367,7 +367,7 @@ async def proposejeu(ctx):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://fakeurl.com/{jeu_choisi.replace(' ', '_')})** ?")
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **`!{jeu_choisi.capitalize()}`** ?")
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
@@ -386,9 +386,10 @@ async def proposejeutype(ctx, game_type: str = None):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://fakeurl.com/{jeu_choisi.replace(' ', '_')})** ?")
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **`!{jeu_choisi.capitalize()}`** ?")
     else:
         await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `!types` pour voir les types existants.")
+
 
 def get_steam_image(steam_link):
     """ Récupère l'image d'un jeu depuis Steam. """
@@ -443,6 +444,33 @@ async def commandes(ctx):
         embed.add_field(name="🔒 Commandes Admin", value=admin_commands, inline=False)
 
     await ctx.send(embed=embed, view=view)
+
+@bot.event
+async def on_message(message):
+    """ Vérifie si un message correspond au nom d'un jeu et affiche la fiche. """
+    if message.author == bot.user:
+        return
+
+    # Vérifie si le message commence par "!" pour détecter une commande
+    if message.content.startswith("!"):
+        jeu_nom = message.content[1:].strip().lower()
+
+        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (jeu_nom,))
+        game_info = cursor.fetchone()
+
+        if game_info:
+            embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
+            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
+            embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
+            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
+            embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
+            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
+            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+
+            await message.channel.send(embed=embed)
+
+    await bot.process_commands(message)
 
 # Lancer le bot
 bot.run(TOKEN)
