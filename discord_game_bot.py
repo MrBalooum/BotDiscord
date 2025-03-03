@@ -36,21 +36,6 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     steam_link TEXT)''')
 conn.commit()
 
-@bot.event
-async def on_message(message):
-    """ Auto-complétion des commandes en fonction de ce que l'utilisateur tape. """
-    if message.author == bot.user or not message.content.startswith("!"):
-        return  # Ignore les messages du bot et ceux qui ne commencent pas par "!"
-
-    user_input = message.content.lower()[1:]  # Enlève le "!" et met en minuscule
-    possible_commands = [cmd.name for cmd in bot.commands if cmd.name.startswith(user_input)]
-    
-    if possible_commands:
-        suggestions = " | ".join(f"`!{cmd}`" for cmd in possible_commands)
-        await message.channel.send(f"🔎 Suggestions : {suggestions}")
-
-    await bot.process_commands(message)  # Permet aux autres commandes de fonctionner normalement
-
 class CommandesDropdown(discord.ui.Select):
     def __init__(self, is_admin):
         """ Crée un menu déroulant avec les commandes disponibles. """
@@ -424,11 +409,10 @@ def get_steam_image(steam_link):
 # 📌 Commandes disponibles
 @bot.command(aliases=["Commande", "commande", "Commandes"])
 async def commandes(ctx):
-    """ Affiche la liste des commandes disponibles, en cachant celles des admins pour les non-admins. """
+    """ Affiche la liste des commandes disponibles (sans menu déroulant). """
     
     # Vérifier si l'utilisateur est un admin
     is_admin = ctx.author.guild_permissions.administrator
-    view = CommandesView(is_admin)
 
     # Commandes accessibles à tous
     public_commands = """
@@ -436,38 +420,50 @@ async def commandes(ctx):
 🔹 `!listejeux` → Affiche tous les jeux enregistrés (triés A-Z)  
 🔹 `!types` → Affiche tous les types de jeux enregistrés  
 🔹 `!type "TypeDeJeu"` → Affiche tous les jeux d'un type donné  
-🔹 `!ask "NomDuJeu"` → Demande l'ajout d'un jeu (les admins peuvent voir cette liste avec `!demandes`)  
+🔹 `!ask "NomDuJeu"` → Demande l'ajout d'un jeu  
 🔹 `!proposejeu` → Propose un jeu aléatoire  
-🔹 `!proposejeutype "TypeDeJeu"` → Propose un jeu aléatoire selon un type spécifique  
+🔹 `!proposejeutype "TypeDeJeu"` → Propose un jeu d’un type donné  
 🔹 **Recherche d’un jeu :** Tape `!NomDuJeu` (ex: `!The Witcher 3`) pour voir sa fiche complète  
 """
+
     # Commandes réservées aux admins
     admin_commands = """
 **🔒 Commandes Admin :**
 🔹 `!ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → Ajoute un jeu  
 🔹 `!supprjeu "Nom"` → Supprime un jeu  
 🔹 `!modifjeu "Nom" "Champ" "NouvelleValeur"` → Modifie un jeu  
-🔹 `!demandes` → Affiche la liste des jeux demandés par les utilisateurs  
-🔹 `!createtable` → Crée la table des demandes (si elle n'existe pas encore)  
+🔹 `!demandes` → Affiche les jeux demandés  
+🔹 `!supprdemande "NomDuJeu"` → Supprime une demande manuellement  
 """
 
     embed = discord.Embed(title="📜 Liste des commandes", color=discord.Color.blue())
-    embed.add_field(
-        name="📌 Instructions",
-        value="Sélectionne une commande dans le menu ci-dessous. Elle s'écrira automatiquement dans ta barre de message.",
-        inline=False
-    )
-    embed.add_field(name="📂 Commandes publiques", value=public_commands, inline=False)
+    embed.add_field(name="📌 Instructions", value="Tape `!` suivi d'une lettre pour voir les commandes disponibles.", inline=False)
+    embed.add_field(name="🔹 Commandes publiques", value=public_commands, inline=False)
 
     if is_admin:
         embed.add_field(name="🔒 Commandes Admin", value=admin_commands, inline=False)
 
-    await ctx.send(embed=embed, view=view)
+    await ctx.send(embed=embed)
 
 class JeuView(discord.ui.View):
     def __init__(self, jeu_nom):
         super().__init__(timeout=300)
         self.jeu_nom = jeu_nom
+
+@bot.event
+async def on_message(message):
+    """ Auto-complétion des commandes en fonction de ce que l'utilisateur tape. """
+    if message.author == bot.user or not message.content.startswith("!"):
+        return  # Ignore les messages du bot et ceux qui ne commencent pas par "!"
+
+    user_input = message.content.lower()[1:]  # Enlève le "!" et met en minuscule
+    possible_commands = [cmd.name for cmd in bot.commands if cmd.name.startswith(user_input)]
+    
+    if possible_commands:
+        suggestions = " | ".join(f"`!{cmd}`" for cmd in possible_commands)
+        await message.channel.send(f"🔎 Suggestions : {suggestions}")
+
+    await bot.process_commands(message)  # Permet aux autres commandes de fonctionner normalement
 
 # Lancer le bot
 bot.run(TOKEN)
