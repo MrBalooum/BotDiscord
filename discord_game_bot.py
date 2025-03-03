@@ -42,7 +42,7 @@ def save_database():
     print("📂 Base de données sauvegardée avec succès sur Railway.")
 
 # 📌 Modifier un jeu
-@bot.command(aliases=["modifjeu", "modiffjeu", "Modifjeu", "Modiffjeu"])
+@bot.command(aliases=["modiffjeu", "Modifjeu", "Modiffjeu"])
 @commands.has_permissions(administrator=True)
 async def modifjeu(ctx, name: str, field: str, new_value: str):
     """ Modifie une valeur d'un jeu existant """
