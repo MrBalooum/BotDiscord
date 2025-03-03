@@ -36,6 +36,21 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     steam_link TEXT)''')
 conn.commit()
 
+@bot.event
+async def on_message(message):
+    """ Auto-complétion des commandes en fonction de ce que l'utilisateur tape. """
+    if message.author == bot.user or not message.content.startswith("!"):
+        return  # Ignore les messages du bot et ceux qui ne commencent pas par "!"
+
+    user_input = message.content.lower()[1:]  # Enlève le "!" et met en minuscule
+    possible_commands = [cmd.name for cmd in bot.commands if cmd.name.startswith(user_input)]
+    
+    if possible_commands:
+        suggestions = " | ".join(f"`!{cmd}`" for cmd in possible_commands)
+        await message.channel.send(f"🔎 Suggestions : {suggestions}")
+
+    await bot.process_commands(message)  # Permet aux autres commandes de fonctionner normalement
+
 class CommandesDropdown(discord.ui.Select):
     def __init__(self, is_admin):
         """ Crée un menu déroulant avec les commandes disponibles. """
