@@ -98,7 +98,7 @@ async def supprjeu(ctx, name: str):
         await ctx.send(f"❌ Erreur lors de la suppression du jeu : {str(e)}")
 
 # 📌 Liste des jeux enregistrés
-@bot.command(aliases=["Listejeux", "listejeu", "Listejeu", "listejeux])
+@bot.command(aliases=["Listejeux", "listejeu", "Listejeu", "listejeux"])
 async def listejeux(ctx):
     """ Affiche tous les jeux enregistrés, triés par ordre alphabétique. """
     cursor.execute("SELECT name FROM games ORDER BY LOWER(name) ASC")
