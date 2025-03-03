@@ -391,7 +391,7 @@ async def commandes(ctx):
 🔹 `!createtable` → Crée la table des demandes (si besoin)  
 """
 
-is_admin = ctx.author.guild_permissions.administrator
+    is_admin = ctx.author.guild_permissions.administrator
     view = CommandesView(ctx, is_admin)
 
     embed = discord.Embed(title="📜 Liste des commandes", color=discord.Color.blue())
