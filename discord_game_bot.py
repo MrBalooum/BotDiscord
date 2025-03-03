@@ -103,7 +103,7 @@ def save_database():
     print("📂 Base de données sauvegardée avec succès sur Railway.")
 
 # 📌 Demander un jeu
-@bot.command(aliases=["Ask", "Demande", "demande"])
+@bot.command(aliases=["Ask"])
 async def ask(ctx, *, game_name: str):
     """ Ajoute une demande de jeu avec confirmation """
     user_id = ctx.author.id
@@ -130,7 +130,7 @@ async def ask(ctx, *, game_name: str):
 
 
 # 📌 Voir la liste des demandes (ADMIN)
-@bot.command(aliases=["Demandes", "ListeDemandes"])
+@bot.command(aliases=["Demandes"])
 @commands.has_permissions(administrator=True)
 async def demandes(ctx):
     """ Affiche la liste des jeux demandés avec l'utilisateur qui l'a demandé """
@@ -144,7 +144,7 @@ async def demandes(ctx):
         await ctx.send("📭 **Aucune demande en attente.**")
 
 # 📌 Supprimer une demande manuellement (ADMIN)
-@bot.command(aliases=["Supprdemande", "Retirerdemande"])
+@bot.command(aliases=["Supprdemande"])
 @commands.has_permissions(administrator=True)
 async def supprdemande(ctx, game_name: str):
     """ Supprime une demande de jeu de la liste """
@@ -157,7 +157,6 @@ async def supprdemande(ctx, game_name: str):
         await ctx.send(f"🗑️ La demande pour **{game_name.capitalize()}** a été supprimée.")
     else:
         await ctx.send(f"❌ Aucun jeu trouvé dans la liste des demandes sous le nom '{game_name}'.")
-
 
 # 📌 Modifier un jeu
 @bot.command(aliases=["modiffjeu", "Modifjeu", "Modiffjeu"])
@@ -233,7 +232,7 @@ async def supprjeu(ctx, name: str):
 
     except Exception as e:
         await ctx.send(f"❌ Erreur lors de la suppression du jeu : {str(e)}")
-
+        
 # 📌 Liste des jeux enregistrés
 @bot.command(aliases=["Listejeux", "listejeu", "Listejeu"])
 async def listejeux(ctx):
@@ -251,14 +250,14 @@ async def listejeux(ctx):
     except Exception as e:
         await ctx.send(f"❌ Erreur lors de la récupération des jeux : {str(e)}")
 
-# 📌 Recherche par nom (`!NomDuJeu`)
+# 📌 Recherche par nom (`/NomDuJeu`)
 @bot.event
 async def on_message(message):
     """ Recherche un jeu par son nom et affiche la fiche. """
     if message.author == bot.user:
         return
 
-    if message.content.startswith("!"):
+    if message.content.startswith("/"):
         jeu_nom = message.content[1:].strip().lower()
 
         try:
@@ -290,13 +289,12 @@ async def on_message(message):
         except psycopg2.Error as e:
             await message.channel.send(f"❌ Erreur SQL : {str(e)}")
 
-# 📌 Recherche par type (`!type`)
+# 📌 Recherche par type (`/type`)
 @bot.command(aliases=["Types", "Type"])
 async def type(ctx, game_type: str = None):
-
     """ Affiche tous les jeux correspondant à un type donné. """
     if game_type is None:
-        await ctx.send("❌ Utilisation correcte : `!type NomDuType`\nTape `!types` pour voir tous les types disponibles.")
+        await ctx.send("❌ Utilisation correcte : `/type NomDuType`\nTape `/types` pour voir tous les types disponibles.")
         return
 
     game_type = game_type.lower().strip()
@@ -315,6 +313,24 @@ async def type(ctx, game_type: str = None):
         await ctx.send(f"🎮 **Jeux trouvés pour le type '{game_type.capitalize()}':**\n```{game_list}```")
     else:
         await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.")
+
+@bot.command()
+async def types(ctx):
+    """ Affiche tous les types de jeux disponibles dans la base. """
+    cursor.execute("SELECT DISTINCT type FROM games")
+    types_found = cursor.fetchall()
+
+    unique_types = set()  # Utilisation d'un ensemble pour éviter les doublons
+
+    for row in types_found:
+        types_list = row[0].lower().split(",")  # Séparation des types avec ","
+        unique_types.update([t.strip().capitalize() for t in types_list])  # Suppression des espaces et mise en capitales
+
+    if unique_types:
+        type_list = "\n".join(f"- {t}" for t in sorted(unique_types))  # Trie et affichage propre
+        await ctx.send(f"🎮 **Types de jeux disponibles :**\n```{type_list}```\nTape `/type NomDuType` pour voir les jeux correspondants.")
+    else:
+        await ctx.send("❌ Aucun type de jeu trouvé dans la base.")
 
 @bot.command()
 async def types(ctx):
@@ -363,7 +379,7 @@ async def on_interaction(interaction: discord.Interaction):
 
                 await interaction.response.send_message(embed=embed, ephemeral=False)
 
-@bot.command(aliases=["ProposeJeu", "ProposerJeu"])
+@bot.command()
 async def proposejeu(ctx):
     """ Propose un jeu aléatoire et affiche un bouton invisible sur son nom. """
     cursor.execute("SELECT name FROM games")
@@ -376,12 +392,12 @@ async def proposejeu(ctx):
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
-@bot.command(aliases=["ProposeJeuType", "proposerJeuType", "ProposerJeuType"])
+@bot.command()
 async def proposejeutype(ctx, game_type: str = None):
     """ Propose un jeu aléatoire basé sur un type donné avec un bouton invisible sur son nom. """
     
     if not game_type:
-        await ctx.send("❌ Utilisation correcte : `!proposejeutype NomDuType`\nTape `!types` pour voir tous les types disponibles.")
+        await ctx.send("❌ Utilisation correcte : `/proposejeutype NomDuType`\nTape `/types` pour voir tous les types disponibles.")
         return
 
     game_type = game_type.lower().strip()
@@ -393,21 +409,10 @@ async def proposejeutype(ctx, game_type: str = None):
         view = JeuButton(jeu_choisi)
         await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=view)
     else:
-        await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `!types` pour voir les types existants.")
-
-
-def get_steam_image(steam_link):
-    """ Récupère l'image d'un jeu depuis Steam. """
-    try:
-        if "store.steampowered.com" in steam_link:
-            game_id = steam_link.split('/app/')[1].split('/')[0]
-            return f"https://cdn.akamai.steamstatic.com/steam/apps/{game_id}/header.jpg"
-    except:
-        return None
-    return None
+        await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `/types` pour voir les types existants.")
 
 # 📌 Commandes disponibles
-@bot.command(aliases=["Commande", "commande", "Commandes"])
+@bot.command()
 async def commandes(ctx):
     """ Affiche la liste des commandes disponibles (sans menu déroulant). """
     
@@ -417,34 +422,34 @@ async def commandes(ctx):
     # Commandes accessibles à tous
     public_commands = """
 **📜 Commandes publiques :**
-🔹 `!listejeux` → Affiche tous les jeux enregistrés (triés A-Z)  
-🔹 `!types` → Affiche tous les types de jeux enregistrés  
-🔹 `!type "TypeDeJeu"` → Affiche tous les jeux d'un type donné  
-🔹 `!ask "NomDuJeu"` → Demande l'ajout d'un jeu  
-🔹 `!proposejeu` → Propose un jeu aléatoire  
-🔹 `!proposejeutype "TypeDeJeu"` → Propose un jeu d’un type donné  
-🔹 **Recherche d’un jeu :** Tape `!NomDuJeu` (ex: `!The Witcher 3`) pour voir sa fiche complète  
+🔹 `/listejeux` → Affiche tous les jeux enregistrés (triés A-Z)  
+🔹 `/types` → Affiche tous les types de jeux enregistrés  
+🔹 `/type "TypeDeJeu"` → Affiche tous les jeux d'un type donné  
+🔹 `/ask "NomDuJeu"` → Demande l'ajout d'un jeu  
+🔹 `/proposejeu` → Propose un jeu aléatoire  
+🔹 `/proposejeutype "TypeDeJeu"` → Propose un jeu d’un type donné  
+🔹 **Recherche d’un jeu :** Tape `/NomDuJeu` (ex: `/The Witcher 3`) pour voir sa fiche complète  
 """
 
     # Commandes réservées aux admins
     admin_commands = """
 **🔒 Commandes Admin :**
-🔹 `!ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → Ajoute un jeu  
-🔹 `!supprjeu "Nom"` → Supprime un jeu  
-🔹 `!modifjeu "Nom" "Champ" "NouvelleValeur"` → Modifie un jeu  
-🔹 `!demandes` → Affiche les jeux demandés  
-🔹 `!supprdemande "NomDuJeu"` → Supprime une demande manuellement  
+🔹 `/ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → Ajoute un jeu  
+🔹 `/supprjeu "Nom"` → Supprime un jeu  
+🔹 `/modifjeu "Nom" "Champ" "NouvelleValeur"` → Modifie un jeu  
+🔹 `/demandes` → Affiche les jeux demandés  
+🔹 `/supprdemande "NomDuJeu"` → Supprime une demande manuellement  
 """
 
     embed = discord.Embed(title="📜 Liste des commandes", color=discord.Color.blue())
-    embed.add_field(name="📌 Instructions", value="Tape `!` suivi d'une lettre pour voir les commandes disponibles.", inline=False)
+    embed.add_field(name="📌 Instructions", value="Tape `/` suivi d'une lettre pour voir les commandes disponibles.", inline=False)
     embed.add_field(name="🔹 Commandes publiques", value=public_commands, inline=False)
 
     if is_admin:
         embed.add_field(name="🔒 Commandes Admin", value=admin_commands, inline=False)
 
     await ctx.send(embed=embed)
-
+    
 class JeuView(discord.ui.View):
     def __init__(self, jeu_nom):
         super().__init__(timeout=300)
@@ -453,14 +458,14 @@ class JeuView(discord.ui.View):
 @bot.event
 async def on_message(message):
     """ Auto-complétion des commandes en fonction de ce que l'utilisateur tape. """
-    if message.author == bot.user or not message.content.startswith("!"):
-        return  # Ignore les messages du bot et ceux qui ne commencent pas par "!"
+    if message.author == bot.user or not message.content.startswith("/"):
+        return  # Ignore les messages du bot et ceux qui ne commencent pas par "/"
 
-    user_input = message.content.lower()[1:]  # Enlève le "!" et met en minuscule
+    user_input = message.content.lower()[1:]  # Enlève le "/" et met en minuscule
     possible_commands = [cmd.name for cmd in bot.commands if cmd.name.startswith(user_input)]
     
     if possible_commands:
-        suggestions = " | ".join(f"`!{cmd}`" for cmd in possible_commands)
+        suggestions = " | ".join(f"`/{cmd}`" for cmd in possible_commands)
         await message.channel.send(f"🔎 Suggestions : {suggestions}")
 
     await bot.process_commands(message)  # Permet aux autres commandes de fonctionner normalement
