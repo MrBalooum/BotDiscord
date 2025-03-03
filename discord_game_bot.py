@@ -410,9 +410,6 @@ async def commandes(interaction: discord.Interaction):
     embed = discord.Embed(title="📜 Liste des commandes", color=discord.Color.blue())
     embed.add_field(name="📜 Commandes publiques", value=public_commands, inline=False)
 
-    if is_admin:
-        embed.add_field(name="🔒 Commandes Admin", value=admin_commands, inline=False)
-
     await interaction.response.send_message(embed=embed)
     
 class JeuView(discord.ui.View):
