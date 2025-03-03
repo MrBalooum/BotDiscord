@@ -335,39 +335,14 @@ async def types(ctx):
         await ctx.send("❌ Aucun type de jeu trouvé dans la base.")
 
 class JeuButton(discord.ui.View):
-    def __init__(self, game_name):
-        super().__init__(timeout=120)
-        self.game_name = game_name
-
-    @discord.ui.button(label="Voir la fiche du jeu", style=discord.ButtonStyle.primary)
-    async def show_game_info(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """ Affiche la fiche du jeu quand on clique sur le bouton. """
-        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (self.game_name.lower(),))
-        game_info = cursor.fetchone()
-
-        if game_info:
-            embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
-            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
-            embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
-            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
-            embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
-            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
-            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
-            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
-
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            await interaction.response.send_message("❌ Jeu introuvable.", ephemeral=True)
-
-class JeuButton(discord.ui.View):
     def __init__(self, jeu_nom):
         super().__init__(timeout=300)
         self.jeu_nom = jeu_nom
-        self.add_item(discord.ui.Button(label="Voir la fiche", style=discord.ButtonStyle.primary, custom_id=f"jeu:{jeu_nom.lower()}"))
+        self.add_item(discord.ui.Button(label=jeu_nom, style=discord.ButtonStyle.primary, custom_id=f"jeu:{jeu_nom.lower()}"))
 
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
-    """ Gère le clic sur le bouton pour afficher la fiche du jeu. """
+    """ Gère le clic sur le nom du jeu pour afficher la fiche. """
     if interaction.data and "custom_id" in interaction.data:
         custom_id = interaction.data["custom_id"]
         if custom_id.startswith("jeu:"):
@@ -388,53 +363,38 @@ async def on_interaction(interaction: discord.Interaction):
 
                 await interaction.response.send_message(embed=embed, ephemeral=False)
 
-    async def show_game_info(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """ Envoie la fiche du jeu quand on clique sur son nom. """
-        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (self.jeu_nom.lower(),))
-        game_info = cursor.fetchone()
-
-        if game_info:
-            embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
-            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
-            embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
-            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
-            embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
-            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
-            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
-            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
-
-            await interaction.response.send_message(embed=embed, ephemeral=False)
-
 @bot.command(aliases=["ProposeJeu", "ProposerJeu"])
 async def proposejeu(ctx):
-    """ Propose un jeu aléatoire et affiche sa fiche en cliquant sur son nom. """
+    """ Propose un jeu aléatoire et affiche un bouton invisible sur son nom. """
     cursor.execute("SELECT name FROM games")
     games = cursor.fetchall()
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=JeuButton(jeu_choisi))
+        view = JeuButton(jeu_choisi)
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=view)
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
-@bot.command(name="proposejeutype", aliases=["ProposeJeuType", "proposerJeuType", "ProposerJeuType"])
+@bot.command(aliases=["ProposeJeuType", "proposerJeuType", "ProposerJeuType"])
 async def proposejeutype(ctx, game_type: str = None):
-    """ Propose un jeu aléatoire basé sur un type donné et affiche sa fiche en cliquant sur son nom. """
+    """ Propose un jeu aléatoire basé sur un type donné avec un bouton invisible sur son nom. """
     
     if not game_type:
         await ctx.send("❌ Utilisation correcte : `!proposejeutype NomDuType`\nTape `!types` pour voir tous les types disponibles.")
         return
 
     game_type = game_type.lower().strip()
-
     cursor.execute("SELECT name FROM games WHERE LOWER(type) LIKE %s", (f"%{game_type}%",))
     games = cursor.fetchall()
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=JeuButton(jeu_choisi))
+        view = JeuButton(jeu_choisi)
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=view)
     else:
         await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `!types` pour voir les types existants.")
+
 
 def get_steam_image(steam_link):
     """ Récupère l'image d'un jeu depuis Steam. """
@@ -466,7 +426,6 @@ async def commandes(ctx):
 🔹 `!proposejeutype "TypeDeJeu"` → Propose un jeu aléatoire selon un type spécifique  
 🔹 **Recherche d’un jeu :** Tape `!NomDuJeu` (ex: `!The Witcher 3`) pour voir sa fiche complète  
 """
-
     # Commandes réservées aux admins
     admin_commands = """
 **🔒 Commandes Admin :**
