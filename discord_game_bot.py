@@ -90,7 +90,50 @@ class CommandesView(discord.ui.View):
     def __init__(self, is_admin):
         super().__init__(timeout=120)  # Les boutons restent actifs 2 minutes
         self.add_item(CommandesDropdown(is_admin))
-        
+
+from discord import app_commands
+
+@bot.tree.command(name="fiche", description="Affiche la fiche détaillée d'un jeu")
+async def fiche(interaction: discord.Interaction, game: str):
+    """Affiche la fiche détaillée du jeu sélectionné."""
+    game_query = game.strip().lower()
+    cursor.execute("""
+        SELECT name, release_date, price, type, duration, cloud_available, youtube_link, steam_link
+        FROM games
+        WHERE LOWER(name) = %s
+    """, (game_query,))
+    game_info = cursor.fetchone()
+    
+    if game_info:
+        embed = discord.Embed(
+            title=f"🎮 {game_info[0].capitalize()}",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
+        embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
+        embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
+        embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
+        embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
+        embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+        embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+        await interaction.response.send_message(embed=embed)
+    else:
+        await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{game}'.", ephemeral=True)
+
+@fiche.autocomplete("game")
+async def fiche_autocomplete(interaction: discord.Interaction, current: str):
+    """Retourne des suggestions de noms de jeu en fonction de l'entrée actuelle."""
+    current_lower = current.lower().strip()
+    cursor.execute("""
+        SELECT name FROM games
+        WHERE LOWER(name) LIKE %s
+        ORDER BY name ASC
+        LIMIT 25
+    """, (f"%{current_lower}%",))
+    results = cursor.fetchall()
+    suggestions = [row[0].capitalize() for row in results]
+    return [app_commands.Choice(name=name, value=name) for name in suggestions]
+
 # 📌 Demander un jeu
 @bot.tree.command(name="ask")
 async def ask(interaction: discord.Interaction, game_name: str):
