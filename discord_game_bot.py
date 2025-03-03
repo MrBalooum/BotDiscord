@@ -145,9 +145,6 @@ async def supprdemande(interaction: discord.Interaction, game_name: str):
     else:
         await interaction.response.send_message(f"❌ Aucun jeu trouvé dans la liste des demandes sous le nom '{game_name}'.")
 
-# 📌 Recherche par type (`/type`)
-@bot.tree.command(name="type")
-
 # 📌 Modifier un jeu
 @bot.tree.command(name="modifjeu")
 @commands.has_permissions(administrator=True)
@@ -236,7 +233,7 @@ async def listejeux(interaction: discord.Interaction):
 
 @bot.tree.command(name="type")
 async def type_command(interaction: discord.Interaction, game_type: str):
-    """ Affiche tous les jeux correspondant à un type donné. """
+    """Affiche tous les jeux correspondant à un type donné."""
     game_type = game_type.lower().strip()
     cursor.execute("SELECT name, type FROM games")
     games_found = cursor.fetchall()
@@ -249,9 +246,13 @@ async def type_command(interaction: discord.Interaction, game_type: str):
 
     if matching_games:
         game_list = "\n".join(f"- {game}" for game in matching_games)
-        await interaction.response.send_message(f"🎮 **Jeux trouvés pour le type '{game_type.capitalize()}':**\n```{game_list}```")
+        await interaction.response.send_message(
+            f"🎮 **Jeux trouvés pour le type '{game_type.capitalize()}':**\n```{game_list}```"
+        )
     else:
-        await interaction.response.send_message(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.")
+        await interaction.response.send_message(
+            f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'."
+        )
         
 # 📌 Recherche par nom (`/NomDuJeu`)
 @bot.event
