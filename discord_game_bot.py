@@ -24,16 +24,18 @@ conn = psycopg2.connect(DATABASE_URL, sslmode="require", client_encoding="UTF8")
 cursor = conn.cursor()
 
 # Création de la table "games" si elle n'existe pas encore
-cursor.execute('''CREATE TABLE IF NOT EXISTS games (
-                    id SERIAL PRIMARY KEY,
-                    nom TEXT UNIQUE, 
-                    sortie TEXT, 
-                    prix TEXT, 
-                    type TEXT, 
-                    duree TEXT, 
-                    cloud TEXT, 
-                    youtube TEXT, 
-                    steam TEXT)''')
+CREATE TABLE IF NOT EXISTS games (
+    id SERIAL PRIMARY KEY,
+    nom TEXT UNIQUE,
+    "sortie" TEXT,
+    prix TEXT,
+    "type" TEXT,
+    "durée" TEXT,
+    cloud TEXT,
+    youtube TEXT,
+    steam TEXT
+);
+
 conn.commit()
 
 @bot.event
@@ -214,8 +216,8 @@ async def modifjeu(interaction: discord.Interaction, nom: str, champ: str, nouve
     """
     try:
         nom = nom.strip().lower()
-        # Utilisation de "Nom" avec guillemets pour respecter la casse dans la table
-        cursor.execute('SELECT * FROM games WHERE LOWER("Nom") LIKE %s', (f"%{nom}%",))
+        # Utilisation de "nom" en minuscules (sans guillemets) car la table a été créée sans guillemets explicites
+        cursor.execute('SELECT * FROM games WHERE LOWER(nom) LIKE %s', (f"%{nom}%",))
         jeu = cursor.fetchone()
 
         if not jeu:
@@ -244,7 +246,8 @@ async def modifjeu(interaction: discord.Interaction, nom: str, champ: str, nouve
             )
             return
 
-        query = f'UPDATE games SET "{champ}" = %s WHERE LOWER("Nom") LIKE %s'
+        # Pour la mise à jour, le nom du champ (s'il contient des espaces ou accents) est encadré par des guillemets doubles.
+        query = f'UPDATE games SET "{champ}" = %s WHERE LOWER(nom) LIKE %s'
         cursor.execute(query, (nouvelle_valeur, f"%{nom}%"))
         conn.commit()
 
