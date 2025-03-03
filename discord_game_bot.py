@@ -212,7 +212,7 @@ async def modifjeu(interaction: discord.Interaction, name: str, field: str, new_
             await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'.")
             return
 
-        valid_fields = ["release_date", "price", "type", "duration", "cloud_available", "youtube_link", "steam_link"]
+        valid_fields = ["date de sortie", "prix", "type", "duree", "cloud", "youtube", "steam"]
         if field.lower() not in valid_fields:
             await interaction.response.send_message(f"❌ Le champ `{field}` n'est pas valide. Champs disponibles : {', '.join(valid_fields)}")
             return
