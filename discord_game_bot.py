@@ -41,6 +41,79 @@ def save_database():
     conn.commit()
     print("📂 Base de données sauvegardée avec succès sur Railway.")
 
+# 📌 Ajouter un jeu et supprimer la demande s'il existe dans !ask
+@bot.command(aliases=["AjoutJeu", "Ajoutjeu"])
+@commands.has_permissions(administrator=True)
+async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
+    try:
+        cursor.execute(
+            "INSERT INTO games (name, release_date, price, type, duration, cloud_available, youtube_link, steam_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
+            (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link)
+        )
+        save_database()
+
+        # Suppression automatique de la demande dans game_requests
+        cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
+        conn.commit()
+
+        await ctx.send(f"✅ Jeu '{name}' ajouté avec succès et retiré des demandes !")
+    except psycopg2.IntegrityError:
+        await ctx.send(f"❌ Ce jeu existe déjà dans la base de données : **{name}**")
+    except Exception as e:
+        await ctx.send(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
+
+# 📌 Demander un jeu
+@bot.command(aliases=["Ask", "Demande", "demande"])
+
+async def ask(ctx, game_name: str):
+    """ Enregistre une demande de jeu """
+    user_id = ctx.author.id
+    username = ctx.author.name
+    game_name = game_name.strip().capitalize()
+
+    cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (game_name.lower(),))
+    existing = cursor.fetchone()
+
+    if existing:
+        await ctx.send(f"❌ **{game_name}** est déjà dans la liste des demandes.")
+        return
+
+    cursor.execute("INSERT INTO game_requests (user_id, username, game_name) VALUES (%s, %s, %s)", (user_id, username, game_name))
+    conn.commit()
+
+    await ctx.send(f"📩 Demande pour **{game_name}** enregistrée ! Un admin pourra l'ajouter plus tard.")
+
+# 📌 Voir la liste des demandes (ADMIN)
+@bot.command(aliases=["Demandes", "ListeDemandes"])
+@commands.has_permissions(administrator=True)
+
+async def demandes(ctx):
+    """ Affiche la liste des jeux demandés avec l'utilisateur qui l'a demandé """
+    cursor.execute("SELECT username, game_name FROM game_requests ORDER BY date DESC")
+    requests = cursor.fetchall()
+
+    if requests:
+        request_list = "\n".join([f"- {r[1]} (demandé par {r[0]})" for r in requests])
+        await ctx.send(f"📜 **Liste des jeux demandés :**\n```{request_list}```")
+    else:
+        await ctx.send("📭 Aucune demande en attente.")
+
+# 📌 Supprimer une demande manuellement (ADMIN)
+@bot.command(aliases=["Supprdemande", "Retirerdemande"])
+@commands.has_permissions(administrator=True)
+async def supprdemande(ctx, game_name: str):
+    """ Supprime une demande de jeu de la liste """
+    cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (game_name.lower(),))
+    demande = cursor.fetchone()
+
+    if demande:
+        cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (game_name.lower(),))
+        conn.commit()
+        await ctx.send(f"🗑️ La demande pour **{game_name.capitalize()}** a été supprimée.")
+    else:
+        await ctx.send(f"❌ Aucun jeu trouvé dans la liste des demandes sous le nom '{game_name}'.")
+
+
 # 📌 Modifier un jeu
 @bot.command(aliases=["modiffjeu", "Modifjeu", "Modiffjeu"])
 @commands.has_permissions(administrator=True)
@@ -207,43 +280,24 @@ async def types(ctx):
         await ctx.send("❌ Aucun type de jeu trouvé dans la base.")
 
 # 📌 Proposer un jeu aléatoire
-@bot.command
-async def proposejeu(ctx):
-    """ Sélectionne un jeu aléatoire et propose de voir sa fiche. """
-    cursor.execute("SELECT name FROM games")
+@bot.command(aliases=["ProposeJeu", "ProposerJeu"])
+async def proposejeu(ctx, game_type: str = None):
+    """ Propose un jeu aléatoire (avec option de type spécifique). """
+    query = "SELECT name FROM games"
+    params = ()
+
+    if game_type:
+        query += " WHERE LOWER(type) LIKE %s"
+        params = (f"%{game_type.lower()}%",)
+
+    cursor.execute(query, params)
     games = cursor.fetchall()
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        
-        cursor.execute("""
-            SELECT name, release_date, price, type, duration, cloud_available, youtube_link, steam_link
-            FROM games WHERE LOWER(name) = %s
-        """, (jeu_choisi.lower(),))
-
-        game_info = cursor.fetchone()
-
-        if game_info:
-            steam_image_url = get_steam_image(game_info[7]) if game_info[7] else None
-
-            embed = discord.Embed(
-                title=f"🎮 **{game_info[0].capitalize()}**",  # Titre agrandi
-                color=discord.Color.blue()
-            )
-            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
-            embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
-            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
-            embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
-            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
-            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
-            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
-
-            if steam_image_url:
-                embed.set_image(url=steam_image_url)  # Ajoute l'image Steam
-
-            await ctx.send(embed=embed)
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?")
     else:
-        await ctx.send("❌ Aucun jeu enregistré.")
+        await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'." if game_type else "❌ Aucun jeu enregistré.")
 
 def get_steam_image(steam_link):
     """ Récupère l'image d'un jeu depuis Steam. """
