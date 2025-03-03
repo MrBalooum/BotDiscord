@@ -196,7 +196,6 @@ async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: st
     except Exception as e:
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
         
-# 📌 Supprimer un jeu
 @bot.command(aliases=["Supprjeu"])
 @commands.has_permissions(administrator=True)
 async def supprjeu(ctx, name: str):
