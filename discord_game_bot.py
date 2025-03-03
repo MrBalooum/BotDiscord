@@ -435,5 +435,14 @@ async def on_message(message):
 
     await bot.process_commands(message)  # Permet aux autres commandes de fonctionner normalement
 
+cursor.execute('''CREATE TABLE IF NOT EXISTS game_requests (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT,
+                    username TEXT,
+                    game_name TEXT UNIQUE,
+                    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )''')
+conn.commit()
+
 # Lancer le bot
 bot.run(TOKEN)
