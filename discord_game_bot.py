@@ -94,7 +94,7 @@ class CommandesView(discord.ui.View):
 # 📌 Demander un jeu
 @bot.tree.command(name="ask")
 async def ask(interaction: discord.Interaction, game_name: str):
-    """ Ajoute une demande de jeu avec confirmation """
+    """ Ajoute une demande de jeu avec confirmation et envoie un message dans le salon général """
     user_id = interaction.user.id
     username = interaction.user.name
     game_name = game_name.strip().capitalize()
@@ -111,6 +111,11 @@ async def ask(interaction: discord.Interaction, game_name: str):
         conn.commit()
 
         await interaction.response.send_message(f"📩 **{game_name}** a été ajouté à la liste des demandes par {username} !")
+        
+        # Envoi d'un message dans le salon "général"
+        general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
+        if general_channel:
+            await general_channel.send(f"📣 Le jeu **{game_name}** a été demandé par **{username}**.")
     
     except Exception as e:
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout de la demande : {str(e)}")
