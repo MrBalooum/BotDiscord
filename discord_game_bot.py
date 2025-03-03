@@ -201,40 +201,40 @@ async def supprdemande(interaction: discord.Interaction, game_name: str):
 # 📌 Modifier un jeu
 @bot.tree.command(name="modifjeu")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
-async def modifjeu(interaction: discord.Interaction, nom: str, champ: str, nouvelle_valeur: str):
+async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str):
     """
     Modifie un champ spécifique d'un jeu.
     
-    Les champs disponibles sont :
-    - sortie   (pour la date de sortie)
-    - prix
-    - type
-    - durée
-    - cloud
-    - youtube
-    - steam
+    Les champs disponibles (en français) sont :
+    - sortie    (pour release_date)
+    - prix      (pour price)
+    - type      (pour type)
+    - durée     (pour duration)
+    - cloud     (pour cloud_available)
+    - youtube   (pour youtube_link)
+    - steam     (pour steam_link)
     """
     try:
-        nom_clean = nom.strip().lower()
-        # Recherche du jeu en utilisant la colonne "nom" de la table
-        cursor.execute('SELECT * FROM games WHERE LOWER(nom) LIKE %s', (f"%{nom_clean}%",))
+        name_clean = name.strip().lower()
+        # Recherche le jeu en utilisant la colonne "name"
+        cursor.execute('SELECT * FROM games WHERE LOWER(name) LIKE %s', (f"%{name_clean}%",))
         jeu = cursor.fetchone()
         if not jeu:
             await interaction.response.send_message(
-                f"❌ Aucun jeu trouvé avec le nom '{nom.capitalize()}'.", ephemeral=True
+                f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'.", ephemeral=True
             )
             return
 
         # Mapping entre le champ saisi en français et le nom effectif de la colonne dans la base
         mapping = {
-            "sortie": "sortie",
-            "prix": "prix",
+            "sortie": "release_date",
+            "prix": "price",
             "type": "type",
-            "durée": "durée",
-            "duree": "durée",
-            "cloud": "cloud",
-            "youtube": "youtube",
-            "steam": "steam"
+            "durée": "duration",
+            "duree": "duration",
+            "cloud": "cloud_available",
+            "youtube": "youtube_link",
+            "steam": "steam_link"
         }
         champ_clean = champ.strip().lower()
         if champ_clean not in mapping:
@@ -245,12 +245,11 @@ async def modifjeu(interaction: discord.Interaction, nom: str, champ: str, nouve
             return
 
         actual_field = mapping[champ_clean]
-        # Encadrer le nom de colonne par des guillemets doubles pour gérer les espaces ou accents
-        query = f'UPDATE games SET "{actual_field}" = %s WHERE LOWER(nom) LIKE %s'
-        cursor.execute(query, (nouvelle_valeur, f"%{nom_clean}%"))
+        query = f'UPDATE games SET {actual_field} = %s WHERE LOWER(name) LIKE %s'
+        cursor.execute(query, (nouvelle_valeur, f"%{name_clean}%"))
         conn.commit()
 
-        # Ici, jeu[1] correspond à la colonne "nom"
+        # On suppose que la colonne "name" est à l'index 1
         await interaction.response.send_message(
             f"✅ Jeu '{jeu[1].capitalize()}' mis à jour : **{champ_clean}** → {nouvelle_valeur}"
         )
