@@ -361,13 +361,14 @@ class JeuButton(discord.ui.View):
 
 @bot.command(aliases=["ProposeJeu", "ProposerJeu"])
 async def proposejeu(ctx):
-    """ Propose un jeu aléatoire et permet de voir sa fiche en cliquant sur son nom. """
+    """ Propose un jeu aléatoire et permet d'afficher sa fiche en cliquant sur son nom. """
     cursor.execute("SELECT name FROM games")
     games = cursor.fetchall()
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://game-info/{jeu_choisi.replace(' ', '_')})** ?")
+        # Lien Discord qui déclenche l'affichage de la fiche du jeu
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/?message=!{jeu_choisi.replace(' ', '_')})** ?")
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
@@ -386,7 +387,7 @@ async def proposejeutype(ctx, game_type: str = None):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://game-info/{jeu_choisi.replace(' ', '_')})** ?")
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/?message=!{jeu_choisi.replace(' ', '_')})** ?")
     else:
         await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `!types` pour voir les types existants.")
 
@@ -450,9 +451,9 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Vérifier si le message contient un lien de jeu
-    if "https://game-info/" in message.content:
-        jeu_nom = message.content.split("https://game-info/")[1].replace("_", " ").strip().lower()
+    # Vérifier si le message commence par "!" pour détecter une commande de jeu
+    if message.content.startswith("!"):
+        jeu_nom = message.content[1:].strip().lower()
 
         cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (jeu_nom,))
         game_info = cursor.fetchone()
