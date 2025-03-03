@@ -84,8 +84,7 @@ class CommandesDropdown(discord.ui.Select):
             options += [
                 discord.SelectOption(label=cmd, description=desc)
                 for cmd, desc in admin_commands.items()
-            ]
-        )
+         ]
 
 class CommandesView(discord.ui.View):
     def __init__(self, is_admin):
