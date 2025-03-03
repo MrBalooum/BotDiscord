@@ -402,26 +402,6 @@ def get_steam_image(steam_link):
         return None
     return None
 
-@bot.command(aliases=["ProposeJeuType", "proposerJeuType", "ProposerJeuType"])
-async def proposejeutype(ctx, game_type: str = None):
-    """ Propose un jeu aléatoire basé sur un type donné """
-    
-    if not game_type:
-        await ctx.send("❌ Utilisation correcte : `!proposejeutype NomDuType`\nTape `!types` pour voir tous les types disponibles.")
-        return
-
-    game_type = game_type.lower().strip()
-
-    # Recherche des jeux correspondant au type donné
-    cursor.execute("SELECT name FROM games WHERE LOWER(type) LIKE %s", (f"%{game_type}%",))
-    games = cursor.fetchall()
-
-    if games:
-        jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?")
-    else:
-        await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `!types` pour voir les types existants.")
-
 # 📌 Commandes disponibles
 @bot.command(aliases=["Commande", "commande", "Commandes"])
 async def commandes(ctx):
