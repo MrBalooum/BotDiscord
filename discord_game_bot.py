@@ -367,7 +367,7 @@ async def proposejeu(ctx):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **`!{jeu_choisi.capitalize()}`** ?")
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://game-info/{jeu_choisi.replace(' ', '_')})** ?")
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
@@ -386,10 +386,9 @@ async def proposejeutype(ctx, game_type: str = None):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **`!{jeu_choisi.capitalize()}`** ?")
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://game-info/{jeu_choisi.replace(' ', '_')})** ?")
     else:
         await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `!types` pour voir les types existants.")
-
 
 def get_steam_image(steam_link):
     """ Récupère l'image d'un jeu depuis Steam. """
@@ -447,13 +446,13 @@ async def commandes(ctx):
 
 @bot.event
 async def on_message(message):
-    """ Vérifie si un message correspond au nom d'un jeu et affiche la fiche. """
+    """ Vérifie si un message contient un jeu cliqué et affiche la fiche. """
     if message.author == bot.user:
         return
 
-    # Vérifie si le message commence par "!" pour détecter une commande
-    if message.content.startswith("!"):
-        jeu_nom = message.content[1:].strip().lower()
+    # Vérifier si le message contient un lien de jeu
+    if "https://game-info/" in message.content:
+        jeu_nom = message.content.split("https://game-info/")[1].replace("_", " ").strip().lower()
 
         cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (jeu_nom,))
         game_info = cursor.fetchone()
@@ -471,6 +470,6 @@ async def on_message(message):
             await message.channel.send(embed=embed)
 
     await bot.process_commands(message)
-
+    
 # Lancer le bot
 bot.run(TOKEN)
