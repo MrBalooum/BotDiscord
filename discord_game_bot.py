@@ -4,6 +4,7 @@ import psycopg2
 import asyncio
 import os
 import random
+import app_commands
 
 # Vérification et installation de requests si manquant
 try:
