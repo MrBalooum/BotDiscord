@@ -367,14 +367,14 @@ async def proposejeu(ctx):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id})** ?", 
-                       view=JeuView(jeu_choisi))
+        # Lien cliquable qui déclenche l'affichage de la fiche du jeu
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://fake-link/{jeu_choisi.replace(' ', '_')})** ?")
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
 @bot.command(name="proposejeutype", aliases=["ProposeJeuType", "proposerJeuType", "ProposerJeuType"])
 async def proposejeutype(ctx, game_type: str = None):
-    """ Propose un jeu aléatoire basé sur un type donné et permet d'afficher sa fiche. """
+    """ Propose un jeu aléatoire basé sur un type donné et affiche sa fiche en cliquant sur son nom. """
     
     if not game_type:
         await ctx.send("❌ Utilisation correcte : `!proposejeutype NomDuType`\nTape `!types` pour voir tous les types disponibles.")
@@ -387,8 +387,7 @@ async def proposejeutype(ctx, game_type: str = None):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id})** ?", 
-                       view=JeuView(jeu_choisi))
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://fake-link/{jeu_choisi.replace(' ', '_')})** ?")
     else:
         await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `!types` pour voir les types existants.")
 
@@ -451,10 +450,17 @@ class JeuView(discord.ui.View):
         super().__init__(timeout=300)
         self.jeu_nom = jeu_nom
 
-    @discord.ui.button(label="Voir la fiche", style=discord.ButtonStyle.primary)
-    async def show_game_info(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """ Envoie la fiche du jeu en réponse lorsqu'on clique sur le bouton. """
-        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (self.jeu_nom.lower(),))
+    @bot.event
+async def on_message(message):
+    """ Vérifie si un message contient un jeu cliqué et affiche la fiche. """
+    if message.author == bot.user:
+        return
+
+    # Vérifier si le message contient un "lien cliqué" vers un jeu
+    if "https://fake-link/" in message.content:
+        jeu_nom = message.content.split("https://fake-link/")[1].replace("_", " ").strip().lower()
+
+        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (jeu_nom,))
         game_info = cursor.fetchone()
 
         if game_info:
@@ -467,7 +473,9 @@ class JeuView(discord.ui.View):
             embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
             embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
 
-            await interaction.response.send_message(embed=embed)
+            await message.channel.send(embed=embed)
+
+    await bot.process_commands(message)
     
 # Lancer le bot
 bot.run(TOKEN)
