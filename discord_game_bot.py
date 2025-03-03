@@ -306,23 +306,37 @@ def get_steam_image(steam_link):
 # 📌 Commandes disponibles
 @bot.command(aliases=["Commande", "commande", "Commandes"])
 async def commandes(ctx):
-    """ Affiche la liste des commandes disponibles. """
-    commandes_list = """
-**📜 Liste des commandes disponibles :**
-🔹 `!ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → (ADMIN) Ajoute un jeu  
-🔹 `!supprjeu "Nom"` → (ADMIN) Supprime un jeu  
-🔹 `!modifjeu "Nom" "Champ" "NouvelleValeur"` → (ADMIN) Modifie un jeu  
-🔹 `!demandes` → (ADMIN) Voir la liste des jeux demandés  
-🔹 `!supprdemande "NomDuJeu"` → (ADMIN) Supprime une demande de jeu  
+    """ Affiche la liste des commandes disponibles, en cachant celles des admins pour les non-admins. """
+    
+    # Vérifier si l'utilisateur est un admin
+    is_admin = ctx.author.guild_permissions.administrator
+
+    # Commandes accessibles à tous
+    public_commands = """
+**📜 Commandes publiques :**
 🔹 `!listejeux` → Affiche tous les jeux enregistrés (triés A-Z)  
 🔹 `!types` → Affiche tous les types de jeux enregistrés  
 🔹 `!type "TypeDeJeu"` → Affiche tous les jeux d'un type donné  
-🔹 `!proposejeu` → Propose un jeu aléatoire  
-🔹 `!commandes` → Affiche cette liste  
-🔹 **Recherche d’un jeu :** Tape `!NomDuJeu` (ex: `!The Witcher 3`) pour voir sa fiche complète  
 🔹 `!ask "NomDuJeu"` → Demande l'ajout d'un jeu  
+🔹 `!proposejeu` → Propose un jeu aléatoire  
+🔹 **Recherche d’un jeu :** Tape `!NomDuJeu` (ex: `!The Witcher 3`) pour voir sa fiche complète  
 """
-    await ctx.send(commandes_list)
 
+    # Commandes réservées aux admins
+    admin_commands = """
+**🔒 Commandes Admin :**
+🔹 `!ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → Ajoute un jeu  
+🔹 `!supprjeu "Nom"` → Supprime un jeu  
+🔹 `!modifjeu "Nom" "Champ" "NouvelleValeur"` → Modifie un jeu  
+🔹 `!demandes` → Affiche les jeux demandés  
+🔹 `!createtable` → Crée la table des demandes (si besoin)  
+"""
+
+    # Envoi du message selon le rôle de l'utilisateur
+    if is_admin:
+        await ctx.send(public_commands + admin_commands)
+    else:
+        await ctx.send(public_commands)
+        
 # Lancer le bot
 bot.run(TOKEN)
