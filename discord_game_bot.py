@@ -198,7 +198,6 @@ async def supprdemande(interaction: discord.Interaction, game_name: str):
     else:
         await interaction.response.send_message(f"❌ Aucun jeu trouvé dans la liste des demandes sous le nom '{game_name}'.")
 
-# 📌 Modifier un jeu
 @bot.tree.command(name="modifjeu")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
 async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str):
@@ -216,8 +215,8 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
     """
     try:
         name_clean = name.strip().lower()
-        # Recherche le jeu en utilisant la colonne "name"
-        cursor.execute('SELECT * FROM games WHERE LOWER(name) LIKE %s', (f"%{name_clean}%",))
+        # Utilisation de "nom" car ta table a été créée avec 'nom'
+        cursor.execute('SELECT * FROM games WHERE LOWER(nom) LIKE %s', (f"%{name_clean}%",))
         jeu = cursor.fetchone()
         if not jeu:
             await interaction.response.send_message(
@@ -225,7 +224,6 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
             )
             return
 
-        # Mapping entre le champ saisi en français et le nom effectif de la colonne dans la base
         mapping = {
             "sortie": "release_date",
             "prix": "price",
@@ -245,11 +243,10 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
             return
 
         actual_field = mapping[champ_clean]
-        query = f'UPDATE games SET {actual_field} = %s WHERE LOWER(name) LIKE %s'
+        query = f'UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s'
         cursor.execute(query, (nouvelle_valeur, f"%{name_clean}%"))
         conn.commit()
 
-        # On suppose que la colonne "name" est à l'index 1
         await interaction.response.send_message(
             f"✅ Jeu '{jeu[1].capitalize()}' mis à jour : **{champ_clean}** → {nouvelle_valeur}"
         )
