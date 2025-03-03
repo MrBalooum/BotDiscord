@@ -4,7 +4,6 @@ import psycopg2
 import asyncio
 import os
 import random
-import app_commands
 
 # Vérification et installation de requests si manquant
 try:
@@ -120,6 +119,8 @@ async def ask(interaction: discord.Interaction, game_name: str):
     
     except Exception as e:
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout de la demande : {str(e)}")
+
+from discord import app_commands
 
 # 📌 Voir la liste des demandes (ADMIN)
 @bot.tree.command(name="demandes")
@@ -398,7 +399,7 @@ async def proposejeutype(interaction: discord.Interaction, game_type: str):
         await interaction.response.send_message(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?")
     else:
         await interaction.response.send_message(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.")
-        
+
 # 📌 Commandes disponibles
 @bot.tree.command(name="commandes")
 async def commandes(interaction: discord.Interaction):
