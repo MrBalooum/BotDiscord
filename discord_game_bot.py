@@ -451,7 +451,7 @@ class JeuView(discord.ui.View):
         self.jeu_nom = jeu_nom
 
     @bot.event
-async def on_message(message):
+ async def on_message(message):
     """ Vérifie si un message contient un jeu cliqué et affiche la fiche. """
     if message.author == bot.user:
         return
