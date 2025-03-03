@@ -122,9 +122,7 @@ async def ask(interaction: discord.Interaction, game_name: str):
 
 # 📌 Voir la liste des demandes (ADMIN)
 @bot.tree.command(name="demandes")
-@commands.has_permissions(administrator=True)
-@bot.tree.command(name="demandes")
-@commands.has_permissions(administrator=True)
+@app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
 async def demandes(interaction: discord.Interaction):
     """ Affiche la liste des jeux demandés avec l'utilisateur et la date d'ajout (Jour/Mois) """
     cursor.execute("SELECT username, game_name, date FROM game_requests ORDER BY date DESC")
