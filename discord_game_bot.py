@@ -96,11 +96,11 @@ from discord import app_commands
 @bot.tree.command(name="fiche", description="Affiche la fiche détaillée d'un jeu")
 async def fiche(interaction: discord.Interaction, game: str):
     """Affiche la fiche détaillée du jeu sélectionné."""
-    game_query = game.strip().lower()
+    game_query = game.strip().lower()  # On retire les espaces superflus et on passe en minuscule
     cursor.execute("""
         SELECT name, release_date, price, type, duration, cloud_available, youtube_link, steam_link
         FROM games
-        WHERE LOWER(name) = %s
+        WHERE TRIM(LOWER(name)) = %s
     """, (game_query,))
     game_info = cursor.fetchone()
     
@@ -118,7 +118,7 @@ async def fiche(interaction: discord.Interaction, game: str):
         embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
         await interaction.response.send_message(embed=embed)
     else:
-        await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{game}'.", ephemeral=True)
+        await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{game_query}'.", ephemeral=True)
 
 @fiche.autocomplete("game")
 async def fiche_autocomplete(interaction: discord.Interaction, current: str):
