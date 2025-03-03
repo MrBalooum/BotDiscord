@@ -41,27 +41,6 @@ def save_database():
     conn.commit()
     print("📂 Base de données sauvegardée avec succès sur Railway.")
 
-# 📌 Ajouter un jeu et supprimer la demande s'il existe dans !ask
-@bot.command(aliases=["AjoutJeu", "Ajoutjeu"])
-@commands.has_permissions(administrator=True)
-async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
-    try:
-        cursor.execute(
-            "INSERT INTO games (name, release_date, price, type, duration, cloud_available, youtube_link, steam_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
-            (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link)
-        )
-        save_database()
-
-        # Suppression automatique de la demande dans game_requests
-        cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
-        conn.commit()
-
-        await ctx.send(f"✅ Jeu '{name}' ajouté avec succès et retiré des demandes !")
-    except psycopg2.IntegrityError:
-        await ctx.send(f"❌ Ce jeu existe déjà dans la base de données : **{name}**")
-    except Exception as e:
-        await ctx.send(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
-
 # 📌 Demander un jeu
 @bot.command(aliases=["Ask", "Demande", "demande"])
 
@@ -148,16 +127,30 @@ async def modifjeu(ctx, name: str, field: str, new_value: str):
         await ctx.send(f"❌ Erreur lors de la modification du jeu : {str(e)}")
 
 # 📌 Ajouter un jeu
-@bot.command(aliases=["AjoutJeu", "Ajoutjeu"])
+@bot.command(aliases=["AjoutJeu", "ajoutJeu"])
 @commands.has_permissions(administrator=True)
 async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
+    """ Ajoute un jeu à la liste principale et le retire des demandes s'il existait dans !ask. """
     try:
+        # Ajout du jeu dans la table "games"
         cursor.execute(
             "INSERT INTO games (name, release_date, price, type, duration, cloud_available, youtube_link, steam_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
             (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link)
         )
         save_database()
-        await ctx.send(f"✅ Jeu '{name}' ajouté avec succès !")
+
+        # Vérifier si le jeu était dans les demandes de jeux (!ask)
+        cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
+        demande = cursor.fetchone()
+
+        if demande:
+            # Supprimer la demande si elle existe
+            cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
+            conn.commit()
+            await ctx.send(f"✅ Jeu '{name}' ajouté avec succès et retiré des demandes !")
+        else:
+            await ctx.send(f"✅ Jeu '{name}' ajouté avec succès !")
+
     except psycopg2.IntegrityError:
         await ctx.send(f"❌ Ce jeu existe déjà dans la base de données : **{name}**")
     except Exception as e:
