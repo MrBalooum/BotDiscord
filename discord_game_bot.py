@@ -452,5 +452,10 @@ async def on_message(message):
 
     await bot.process_commands(message)  # Permet aux autres commandes de fonctionner normalement
 
+@bot.event
+async def on_ready():
+    await bot.tree.sync()  # 🔄 Force la mise à jour des commandes
+    print("✅ Slash commands synchronisées avec Discord.")
+
 # Lancer le bot
 bot.run(TOKEN)
