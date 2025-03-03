@@ -24,7 +24,7 @@ conn = psycopg2.connect(DATABASE_URL, sslmode="require", client_encoding="UTF8")
 cursor = conn.cursor()
 
 # Création de la table "games" si elle n'existe pas encore
-CREATE TABLE IF NOT EXISTS games (
+cursor.execute('''CREATE TABLE IF NOT EXISTS games (
     id SERIAL PRIMARY KEY,
     nom TEXT UNIQUE,
     "sortie" TEXT,
@@ -34,8 +34,7 @@ CREATE TABLE IF NOT EXISTS games (
     cloud TEXT,
     youtube TEXT,
     steam TEXT
-);
-
+)''')
 conn.commit()
 
 @bot.event
