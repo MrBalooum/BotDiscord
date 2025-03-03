@@ -328,24 +328,6 @@ async def types(ctx):
 
     if unique_types:
         type_list = "\n".join(f"- {t}" for t in sorted(unique_types))  # Trie et affichage propre
-        await ctx.send(f"🎮 **Types de jeux disponibles :**\n```{type_list}```\nTape `/type NomDuType` pour voir les jeux correspondants.")
-    else:
-        await ctx.send("❌ Aucun type de jeu trouvé dans la base.")
-
-@bot.command()
-async def types(ctx):
-    """ Affiche tous les types de jeux disponibles dans la base. """
-    cursor.execute("SELECT DISTINCT type FROM games")
-    types_found = cursor.fetchall()
-
-    unique_types = set()  # Utilisation d'un ensemble pour éviter les doublons
-
-    for row in types_found:
-        types_list = row[0].lower().split(",")  # Séparation des types avec ","
-        unique_types.update([t.strip().capitalize() for t in types_list])  # Suppression des espaces et mise en capitales
-
-    if unique_types:
-        type_list = "\n".join(f"- {t}" for t in sorted(unique_types))  # Trie et affichage propre
         await ctx.send(f"🎮 **Types de jeux disponibles :**\n```{type_list}```\nTape `!type NomDuType` pour voir les jeux correspondants.")
     else:
         await ctx.send("❌ Aucun type de jeu trouvé dans la base.")
