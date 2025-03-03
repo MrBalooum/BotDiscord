@@ -363,8 +363,31 @@ class JeuButton(discord.ui.View):
     def __init__(self, jeu_nom):
         super().__init__(timeout=300)
         self.jeu_nom = jeu_nom
+        self.add_item(discord.ui.Button(label="Voir la fiche", style=discord.ButtonStyle.primary, custom_id=f"jeu:{jeu_nom.lower()}"))
 
-    @discord.ui.button(label="Voir la fiche", style=discord.ButtonStyle.link, url="https://discord.com")
+@bot.event
+async def on_interaction(interaction: discord.Interaction):
+    """ Gère le clic sur le bouton pour afficher la fiche du jeu. """
+    if interaction.data and "custom_id" in interaction.data:
+        custom_id = interaction.data["custom_id"]
+        if custom_id.startswith("jeu:"):
+            jeu_nom = custom_id.split("jeu:")[1]
+
+            cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (jeu_nom,))
+            game_info = cursor.fetchone()
+
+            if game_info:
+                embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
+                embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
+                embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
+                embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
+                embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
+                embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
+                embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+                embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+
+                await interaction.response.send_message(embed=embed, ephemeral=False)
+
     async def show_game_info(self, interaction: discord.Interaction, button: discord.ui.Button):
         """ Envoie la fiche du jeu quand on clique sur son nom. """
         cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (self.jeu_nom.lower(),))
