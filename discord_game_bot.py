@@ -64,7 +64,7 @@ async def modifjeu(ctx, name: str, field: str, new_value: str):
         await ctx.send(f"❌ Erreur lors de la modification du jeu : {str(e)}")
 
 # 📌 Ajouter un jeu
-@bot.command(aliases=["Ajoutjeu", "ajoutjeu"])
+@bot.command(aliases=["AjoutJeu", "Ajoutjeu"])
 @commands.has_permissions(administrator=True)
 async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
     try:
@@ -80,7 +80,7 @@ async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, du
         await ctx.send(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
 
 # 📌 Supprimer un jeu
-@bot.command(aliases=["supprjeu", "Supprjeu"])
+@bot.command(aliases=["Supprjeu"])
 @commands.has_permissions(administrator=True)
 async def supprjeu(ctx, name: str):
     try:
@@ -98,7 +98,7 @@ async def supprjeu(ctx, name: str):
         await ctx.send(f"❌ Erreur lors de la suppression du jeu : {str(e)}")
 
 # 📌 Liste des jeux enregistrés
-@bot.command(aliases=["Listejeux", "listejeu", "Listejeu", "listejeux"])
+@bot.command(aliases=["Listejeux", "listejeu", "Listejeu"])
 async def listejeux(ctx):
     """ Affiche tous les jeux enregistrés, triés par ordre alphabétique. """
     try:
@@ -152,7 +152,7 @@ async def on_message(message):
             await bot.process_commands(message)
 
 # 📌 Recherche par type (`!type`)
-@bot.command(aliases=["Types", "Type", "types", "types"])
+@bot.command(aliases=["Types", "Type", "types"])
 async def type(ctx, game_type: str = None):
 
     """ Affiche tous les jeux correspondant à un type donné. """
@@ -196,7 +196,7 @@ async def types(ctx):
         await ctx.send("❌ Aucun type de jeu trouvé dans la base.")
 
 # 📌 Proposer un jeu aléatoire
-@bot.command(aliases=["ProposeJeu", "ProposeJeu", "proposejeu", "proposejeux"])
+@bot.command
 async def proposejeu(ctx):
     """ Sélectionne un jeu aléatoire et propose de voir sa fiche. """
     cursor.execute("SELECT name FROM games")
@@ -245,7 +245,7 @@ def get_steam_image(steam_link):
     return None
 
 # 📌 Commandes disponibles
-@bot.command(aliases=["Commande", "commande", "Commandes", "commandes"])
+@bot.command(aliases=["Commande", "commande", "Commandes"])
 async def commandes(ctx):
     """ Affiche la liste des commandes disponibles. """
     commandes_list = """
