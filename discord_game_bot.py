@@ -207,24 +207,27 @@ async def modifjeu(interaction: discord.Interaction, nom: str, champ: str, nouve
     - sortie
     - prix
     - type
-    - duree
+    - durée
     - cloud
     - youtube
     - steam
     """
     try:
         nom = nom.strip().lower()
-        cursor.execute("SELECT * FROM games WHERE LOWER(nom) LIKE %s", (f"%{nom}%",))
+        # Utilisation de "Nom" avec guillemets pour respecter la casse dans la table
+        cursor.execute('SELECT * FROM games WHERE LOWER("Nom") LIKE %s', (f"%{nom}%",))
         jeu = cursor.fetchone()
 
         if not jeu:
-            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{nom.capitalize()}'.", ephemeral=True)
+            await interaction.response.send_message(
+                f"❌ Aucun jeu trouvé avec le nom '{nom.capitalize()}'.", ephemeral=True
+            )
             return
 
         valid_fields = ["sortie", "prix", "type", "durée", "cloud", "youtube", "steam"]
 
         # Gestion d'alias pour certains champs
-        if champ.lower() in ["date", "datesortie", "date de sortie", "sortie"]:
+        if champ.lower() in ["date", "datesortie", "date de sortie"]:
             champ = "sortie"
         elif champ.lower() in ["cloud_disponible", "cloud"]:
             champ = "cloud"
@@ -241,7 +244,7 @@ async def modifjeu(interaction: discord.Interaction, nom: str, champ: str, nouve
             )
             return
 
-        query = f'UPDATE games SET "{champ}" = %s WHERE LOWER(nom) LIKE %s'
+        query = f'UPDATE games SET "{champ}" = %s WHERE LOWER("Nom") LIKE %s'
         cursor.execute(query, (nouvelle_valeur, f"%{nom}%"))
         conn.commit()
 
