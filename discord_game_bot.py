@@ -36,6 +36,45 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     steam_link TEXT)''')
 conn.commit()
 
+import discord
+from discord.ext import commands
+
+class CommandesView(discord.ui.View):
+    def __init__(self, ctx, is_admin):
+        super().__init__(timeout=120)  # Les boutons restent 2 minutes
+        self.ctx = ctx
+        self.is_admin = is_admin
+
+        # Commandes publiques
+        public_commands = [
+            "!listejeux", "!types", "!type NomDuType", "!ask NomDuJeu", "!proposejeu", "!proposejeutype NomDuType"
+        ]
+
+        # Commandes réservées aux admins
+        admin_commands = [
+            "!ajoutjeu Nom Date Prix Type(s) Durée Cloud LienYouTube LienSteam",
+            "!supprjeu Nom",
+            "!modifjeu Nom Champ NouvelleValeur",
+            "!demandes"
+        ]
+
+        # Ajouter les boutons pour les commandes publiques
+        for command in public_commands:
+            self.add_item(CommandButton(command))
+
+        # Ajouter les boutons pour les commandes admin uniquement si l'utilisateur est admin
+        if is_admin:
+            for command in admin_commands:
+                self.add_item(CommandButton(command))
+
+class CommandButton(discord.ui.Button):
+    def __init__(self, command):
+        super().__init__(label=command, style=discord.ButtonStyle.primary)
+
+    async def callback(self, interaction: discord.Interaction):
+        """ Quand on clique sur un bouton, il écrit la commande dans la barre de message sans l'envoyer. """
+        await interaction.response.send_message(f"{self.label}", ephemeral=True)
+
 def save_database():
     """ Sauvegarde immédiate des changements dans PostgreSQL. """
     conn.commit()
@@ -303,6 +342,26 @@ def get_steam_image(steam_link):
         return None
     return None
 
+@bot.command(aliases=["ProposeJeuType", "proposerJeuType", "ProposerJeuType"])
+async def proposejeutype(ctx, game_type: str = None):
+    """ Propose un jeu aléatoire basé sur un type donné """
+    
+    if not game_type:
+        await ctx.send("❌ Utilisation correcte : `!proposejeutype NomDuType`\nTape `!types` pour voir tous les types disponibles.")
+        return
+
+    game_type = game_type.lower().strip()
+
+    # Recherche des jeux correspondant au type donné
+    cursor.execute("SELECT name FROM games WHERE LOWER(type) LIKE %s", (f"%{game_type}%",))
+    games = cursor.fetchall()
+
+    if games:
+        jeu_choisi = random.choice(games)[0]
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?")
+    else:
+        await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `!types` pour voir les types existants.")
+
 # 📌 Commandes disponibles
 @bot.command(aliases=["Commande", "commande", "Commandes"])
 async def commandes(ctx):
@@ -332,11 +391,13 @@ async def commandes(ctx):
 🔹 `!createtable` → Crée la table des demandes (si besoin)  
 """
 
-    # Envoi du message selon le rôle de l'utilisateur
-    if is_admin:
-        await ctx.send(public_commands + admin_commands)
-    else:
-        await ctx.send(public_commands)
-        
+is_admin = ctx.author.guild_permissions.administrator
+    view = CommandesView(ctx, is_admin)
+
+    embed = discord.Embed(title="📜 Liste des commandes", color=discord.Color.blue())
+    embed.add_field(name="Utilisation", value="Clique sur une commande pour la copier dans ta barre de message.", inline=False)
+
+    await ctx.send(embed=embed, view=view)
+
 # Lancer le bot
 bot.run(TOKEN)
