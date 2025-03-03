@@ -50,8 +50,8 @@ async def modifjeu(ctx, name: str, field: str, new_value: str):
         # Normalisation du nom du jeu
         name = name.strip().lower()
 
-        # Vérifier si le jeu existe
-        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (name,))
+        # Vérifier si le jeu existe en utilisant LIKE
+        cursor.execute("SELECT * FROM games WHERE LOWER(name) LIKE %s", (f"%{name}%",))
         jeu = cursor.fetchone()
 
         if not jeu:
@@ -65,15 +65,14 @@ async def modifjeu(ctx, name: str, field: str, new_value: str):
             return
 
         # Modifier le champ
-        query = f"UPDATE games SET {field} = %s WHERE LOWER(name) = %s"
-        cursor.execute(query, (new_value, name))
+        query = f"UPDATE games SET {field} = %s WHERE LOWER(name) LIKE %s"
+        cursor.execute(query, (new_value, f"%{name}%"))
         conn.commit()
 
-        await ctx.send(f"✅ Jeu '{name.capitalize()}' mis à jour : **{field}** → {new_value}")
+        await ctx.send(f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : **{field}** → {new_value}")
 
     except Exception as e:
         await ctx.send(f"❌ Erreur lors de la modification du jeu : {str(e)}")
-
 
 # 📌 Ajouter un jeu
 @bot.command(aliases=["AjoutJeu", "Ajoutjeu"])
