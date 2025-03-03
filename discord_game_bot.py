@@ -454,8 +454,9 @@ async def on_message(message):
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync()  # 🔄 Force la mise à jour des commandes
-    print("✅ Slash commands synchronisées avec Discord.")
-
+    bot.tree.clear_commands(guild=None)  # ⛔ Supprime tout
+    await bot.tree.sync()  # 🔄 Synchronise les commandes personnalisées
+    print("✅ Seules les commandes du bot sont activées !")
+    
 # Lancer le bot
 bot.run(TOKEN)
