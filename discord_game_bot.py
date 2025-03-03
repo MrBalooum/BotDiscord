@@ -36,14 +36,11 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     steam_link TEXT)''')
 conn.commit()
 
-import discord
-from discord.ext import commands
-
-class CommandesView(discord.ui.View):
+class CommandesDropdown(discord.ui.Select):
     def __init__(self, is_admin):
-        super().__init__(timeout=120)  # Les boutons restent actifs 2 minutes
+        """ Crée un menu déroulant avec les commandes disponibles. """
 
-        # Commandes accessibles à tous (avec description)
+        # Commandes publiques (nom + description)
         public_commands = {
             "!listejeux": "Affiche tous les jeux enregistrés (triés A-Z)",
             "!types": "Affiche tous les types de jeux enregistrés",
@@ -53,7 +50,7 @@ class CommandesView(discord.ui.View):
             "!proposejeutype NomDuType": "Propose un jeu aléatoire selon un type spécifique"
         }
 
-        # Commandes réservées aux admins (avec description)
+        # Commandes admin (nom + description)
         admin_commands = {
             "!ajoutjeu Nom Date Prix Type(s) Durée Cloud LienYouTube LienSteam": "Ajoute un jeu à la base",
             "!supprjeu Nom": "Supprime un jeu de la base",
@@ -61,27 +58,39 @@ class CommandesView(discord.ui.View):
             "!demandes": "Affiche la liste des jeux demandés"
         }
 
-        # Ajouter les boutons pour les commandes publiques en répartissant sur plusieurs lignes
-        row = 0
-        for command, description in public_commands.items():
-            self.add_item(CommandButton(command, description, row))
-            row = (row + 1) % 5  # On change de ligne toutes les 5 commandes
+        # Créer les options pour le menu déroulant
+        options = [
+            discord.SelectOption(label=cmd, description=desc)
+            for cmd, desc in public_commands.items()
+        ]
 
-        # Ajouter les boutons pour les commandes admin uniquement si l'utilisateur est admin
+        # Ajouter les commandes admin si l'utilisateur est admin
         if is_admin:
-            for command, description in admin_commands.items():
-                self.add_item(CommandButton(command, description, row))
-                row = (row + 1) % 5  # On change de ligne toutes les 5 commandes
+            options += [
+                discord.SelectOption(label=cmd, description=desc)
+                for cmd, desc in admin_commands.items()
+            ]
 
-class CommandButton(discord.ui.Button):
-    def __init__(self, command, description, row):
-        super().__init__(label=command, style=discord.ButtonStyle.primary, row=row)
-        self.command = command
-        self.description = description
+        # Initialisation du menu déroulant
+        super().__init__(
+            placeholder="📌 Sélectionne une commande...",
+            options=options,
+            min_values=1,
+            max_values=1
+        )
 
     async def callback(self, interaction: discord.Interaction):
-        """ Quand on clique sur un bouton, il écrit la commande dans la barre de message sans l'envoyer. """
-        await interaction.response.send_message(content=f"{self.command}", ephemeral=False)
+        """ Quand on sélectionne une commande, elle s'écrit dans la barre de message. """
+        selected_command = self.values[0]
+        await interaction.response.send_message(
+            content=f"{selected_command}",
+            ephemeral=True
+        )
+
+class CommandesView(discord.ui.View):
+    def __init__(self, is_admin):
+        super().__init__(timeout=120)  # Les boutons restent actifs 2 minutes
+        self.add_item(CommandesDropdown(is_admin))
 
 def save_database():
     """ Sauvegarde immédiate des changements dans PostgreSQL. """
@@ -377,6 +386,7 @@ async def commandes(ctx):
     
     # Vérifier si l'utilisateur est un admin
     is_admin = ctx.author.guild_permissions.administrator
+    view = CommandesView(is_admin)
 
     # Commandes accessibles à tous
     public_commands = """
@@ -398,13 +408,14 @@ async def commandes(ctx):
 🔹 `!demandes` → Affiche les jeux demandés  
 🔹 `!createtable` → Crée la table des demandes (si besoin)  
 """
-    is_admin = ctx.author.guild_permissions.administrator  # Vérifie si l'utilisateur est admin
-    view = CommandesView(is_admin)  # Génère la liste des commandes selon le rôle
 
     embed = discord.Embed(title="📜 Liste des commandes", color=discord.Color.blue())
-    embed.add_field(name="📌 Instructions", value="Clique sur une commande pour la copier dans ta barre de message.", inline=False)
-    
-    await ctx.send(embed=embed, view=view)
+    embed.add_field(
+        name="📌 Instructions",
+        value="Sélectionne une commande dans le menu ci-dessous. Elle s'écrira automatiquement dans ta barre de message.",
+        inline=False
+    )
 
+    await ctx.send(embed=embed, view=view)
 # Lancer le bot
 bot.run(TOKEN)
