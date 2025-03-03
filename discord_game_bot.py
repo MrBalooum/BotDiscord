@@ -61,24 +61,27 @@ class CommandesView(discord.ui.View):
             "!demandes": "Affiche la liste des jeux demandés"
         }
 
-        # Ajouter les boutons pour les commandes publiques
+        # Ajouter les boutons pour les commandes publiques en répartissant sur plusieurs lignes
+        row = 0
         for command, description in public_commands.items():
-            self.add_item(CommandButton(command, description))
+            self.add_item(CommandButton(command, description, row))
+            row = (row + 1) % 5  # On change de ligne toutes les 5 commandes
 
         # Ajouter les boutons pour les commandes admin uniquement si l'utilisateur est admin
         if is_admin:
             for command, description in admin_commands.items():
-                self.add_item(CommandButton(command, description))
+                self.add_item(CommandButton(command, description, row))
+                row = (row + 1) % 5  # On change de ligne toutes les 5 commandes
 
 class CommandButton(discord.ui.Button):
-    def __init__(self, command, description):
-        super().__init__(label=command, style=discord.ButtonStyle.primary, row=0)
+    def __init__(self, command, description, row):
+        super().__init__(label=command, style=discord.ButtonStyle.primary, row=row)
         self.command = command
         self.description = description
 
     async def callback(self, interaction: discord.Interaction):
         """ Quand on clique sur un bouton, il écrit la commande dans la barre de message sans l'envoyer. """
-        await interaction.response.send_message(f"/{self.command}", ephemeral=True, delete_after=1)  # Pré-écrit la commande dans la barre
+        await interaction.response.send_message(content=f"{self.command}", ephemeral=False)
 
 def save_database():
     """ Sauvegarde immédiate des changements dans PostgreSQL. """
