@@ -46,6 +46,11 @@ async def on_ready():
 
     print(f"🤖 Bot connecté en tant que {bot.user}")
 
+def save_database():
+    """ Sauvegarde immédiate des changements dans PostgreSQL. """
+    conn.commit()
+    print("📂 Base de données sauvegardée avec succès sur Railway.")
+
 class CommandesDropdown(discord.ui.Select):
     def __init__(self, is_admin):
         """ Crée un menu déroulant avec les commandes disponibles. """
@@ -80,83 +85,56 @@ class CommandesDropdown(discord.ui.Select):
                 discord.SelectOption(label=cmd, description=desc)
                 for cmd, desc in admin_commands.items()
             ]
-
-        # Initialisation du menu déroulant
-        super().__init__(
-            placeholder="📌 Sélectionne une commande...",
-            options=options,
-            min_values=1,
-            max_values=1
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        """ Quand on sélectionne une commande, elle est suggérée dans la barre de message (sans être envoyée). """
-        selected_command = self.values[0]
-
-        # Empêche le bot d'envoyer un message visible
-        await interaction.response.defer()
-
-        # Simule la suggestion de la commande dans la barre de message
-        await interaction.followup.send(
-            f"**Tape ta commande :** `{selected_command}` et appuie sur `Entrée` !",
-            ephemeral=True  # Message visible uniquement par l'utilisateur
         )
 
 class CommandesView(discord.ui.View):
     def __init__(self, is_admin):
         super().__init__(timeout=120)  # Les boutons restent actifs 2 minutes
         self.add_item(CommandesDropdown(is_admin))
-
-def save_database():
-    """ Sauvegarde immédiate des changements dans PostgreSQL. """
-    conn.commit()
-    print("📂 Base de données sauvegardée avec succès sur Railway.")
-
+        
 # 📌 Demander un jeu
-@bot.command(aliases=["Ask"])
-async def ask(ctx, *, game_name: str):
+@bot.tree.command(name="ask")
+async def ask(interaction: discord.Interaction, game_name: str):
     """ Ajoute une demande de jeu avec confirmation """
-    user_id = ctx.author.id
-    username = ctx.author.name
+    user_id = interaction.user.id
+    username = interaction.user.name
     game_name = game_name.strip().capitalize()
 
     try:
-        # Vérifier si le jeu est déjà demandé
         cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (game_name.lower(),))
         existing = cursor.fetchone()
 
         if existing:
-            await ctx.send(f"❌ **{game_name}** est déjà dans la liste des demandes.")
+            await interaction.response.send_message(f"❌ **{game_name}** est déjà dans la liste des demandes.", ephemeral=True)
             return
 
-        # Ajouter la demande
         cursor.execute("INSERT INTO game_requests (user_id, username, game_name) VALUES (%s, %s, %s)", (user_id, username, game_name))
         conn.commit()
 
-        await ctx.send(f"📩 **{game_name}** a été ajouté à la liste des demandes par {username} !")
+        await interaction.response.send_message(f"📩 **{game_name}** a été ajouté à la liste des demandes par {username} !")
     
     except Exception as e:
-        await ctx.send(f"❌ Erreur lors de l'ajout de la demande : {str(e)}")
-
+        await interaction.response.send_message(f"❌ Erreur lors de l'ajout de la demande : {str(e)}")
 
 # 📌 Voir la liste des demandes (ADMIN)
-@bot.command(aliases=["Demandes"])
+@bot.tree.command(name="demandes")
 @commands.has_permissions(administrator=True)
-async def demandes(ctx):
+async def demandes(interaction: discord.Interaction):
     """ Affiche la liste des jeux demandés avec l'utilisateur qui l'a demandé """
     cursor.execute("SELECT username, game_name FROM game_requests ORDER BY date DESC")
     requests = cursor.fetchall()
 
     if requests:
         request_list = "\n".join([f"- **{r[1]}** (demandé par {r[0]})" for r in requests])
-        await ctx.send(f"📜 **Liste des jeux demandés :**\n```{request_list}```")
+        await interaction.response.send_message(f"📜 **Liste des jeux demandés :**\n```{request_list}```")
     else:
-        await ctx.send("📭 **Aucune demande en attente.**")
+        await interaction.response.send_message("📭 **Aucune demande en attente.**")
 
 # 📌 Supprimer une demande manuellement (ADMIN)
-@bot.command(aliases=["Supprdemande"])
+@bot.tree.command(name="supprdemande")
 @commands.has_permissions(administrator=True)
-async def supprdemande(ctx, game_name: str):
+
+async def supprdemande(interaction: discord.Interaction, game_name: str):
     """ Supprime une demande de jeu de la liste """
     cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (game_name.lower(),))
     demande = cursor.fetchone()
@@ -164,67 +142,64 @@ async def supprdemande(ctx, game_name: str):
     if demande:
         cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (game_name.lower(),))
         conn.commit()
-        await ctx.send(f"🗑️ La demande pour **{game_name.capitalize()}** a été supprimée.")
+        await interaction.response.send_message(f"🗑️ La demande pour **{game_name.capitalize()}** a été supprimée.")
     else:
-        await ctx.send(f"❌ Aucun jeu trouvé dans la liste des demandes sous le nom '{game_name}'.")
+        await interaction.response.send_message(f"❌ Aucun jeu trouvé dans la liste des demandes sous le nom '{game_name}'.")
+
+# 📌 Recherche par type (`/type`)
+@bot.tree.command(name="type")
 
 # 📌 Modifier un jeu
-@bot.command(aliases=["modiffjeu", "Modifjeu", "Modiffjeu"])
+@bot.tree.command(name="modifjeu")
 @commands.has_permissions(administrator=True)
-async def modifjeu(ctx, name: str, field: str, new_value: str):
+async def modifjeu(interaction: discord.Interaction, name: str, field: str, new_value: str):
     """ Modifie un champ spécifique d'un jeu """
     try:
-        # Normalisation du nom du jeu
         name = name.strip().lower()
 
-        # Vérifier si le jeu existe en utilisant LIKE
         cursor.execute("SELECT * FROM games WHERE LOWER(name) LIKE %s", (f"%{name}%",))
         jeu = cursor.fetchone()
 
         if not jeu:
-            await ctx.send(f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'. Vérifie l'orthographe ou utilise `!listejeux`.")
+            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'.")
             return
 
-        # Vérifier que le champ existe
         valid_fields = ["release_date", "price", "type", "duration", "cloud_available", "youtube_link", "steam_link"]
         if field.lower() not in valid_fields:
-            await ctx.send(f"❌ Le champ `{field}` n'est pas valide. Champs disponibles : {', '.join(valid_fields)}")
+            await interaction.response.send_message(f"❌ Le champ `{field}` n'est pas valide. Champs disponibles : {', '.join(valid_fields)}")
             return
 
-        # Modifier le champ
         query = f"UPDATE games SET {field} = %s WHERE LOWER(name) LIKE %s"
         cursor.execute(query, (new_value, f"%{name}%"))
         conn.commit()
 
-        await ctx.send(f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : **{field}** → {new_value}")
+        await interaction.response.send_message(f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : **{field}** → {new_value}")
 
     except Exception as e:
-        await ctx.send(f"❌ Erreur lors de la modification du jeu : {str(e)}")
+        await interaction.response.send_message(f"❌ Erreur lors de la modification du jeu : {str(e)}")
 
 # 📌 Ajouter un jeu
-@bot.command(aliases=["AjoutJeu", "ajoutJeu"])
+@bot.tree.command(name="ajoutjeu")
 @commands.has_permissions(administrator=True)
-async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
-    """ Ajoute un jeu à la liste et le supprime des demandes s'il existait dans !ask """
+async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
+    """ Ajoute un jeu à la liste et le supprime des demandes s'il existait dans /ask """
     try:
-        # Ajout du jeu dans la base
         cursor.execute(
             "INSERT INTO games (name, release_date, price, type, duration, cloud_available, youtube_link, steam_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
             (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link)
         )
         save_database()
 
-        # Supprimer la demande associée
         cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
         conn.commit()
 
-        await ctx.send(f"✅ **{name}** ajouté avec succès et retiré des demandes !")
+        await interaction.response.send_message(f"✅ **{name}** ajouté avec succès et retiré des demandes !")
 
     except psycopg2.IntegrityError:
-        await ctx.send(f"❌ Ce jeu existe déjà dans la base de données : **{name}**")
+        await interaction.response.send_message(f"❌ Ce jeu existe déjà dans la base de données : **{name}**")
     except Exception as e:
-        await ctx.send(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
-
+        await interaction.response.send_message(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
+        
 # 📌 Supprimer un jeu
 @bot.command(aliases=["Supprjeu"])
 @commands.has_permissions(administrator=True)
@@ -244,8 +219,8 @@ async def supprjeu(ctx, name: str):
         await ctx.send(f"❌ Erreur lors de la suppression du jeu : {str(e)}")
         
 # 📌 Liste des jeux enregistrés
-@bot.command(aliases=["Listejeux", "listejeu", "Listejeu"])
-async def listejeux(ctx):
+@bot.tree.command(name="listejeux")
+async def listejeux(interaction: discord.Interaction):
     """ Affiche tous les jeux enregistrés, triés par ordre alphabétique. """
     try:
         cursor.execute("SELECT name FROM games ORDER BY LOWER(name) ASC")
@@ -253,13 +228,13 @@ async def listejeux(ctx):
 
         if games:
             game_list = "\n".join([game[0].capitalize() for game in games])
-            await ctx.send(f"🎮 **Liste des jeux enregistrés (triée A-Z) :**\n```{game_list}```")
+            await interaction.response.send_message(f"🎮 **Liste des jeux enregistrés (triée A-Z) :**\n```{game_list}```")
         else:
-            await ctx.send("❌ Aucun jeu enregistré.")
+            await interaction.response.send_message("❌ Aucun jeu enregistré.")
 
     except Exception as e:
-        await ctx.send(f"❌ Erreur lors de la récupération des jeux : {str(e)}")
-
+        await interaction.response.send_message(f"❌ Erreur lors de la récupération des jeux : {str(e)}")
+        
 # 📌 Recherche par nom (`/NomDuJeu`)
 @bot.event
 async def on_message(message):
@@ -371,47 +346,40 @@ async def on_interaction(interaction: discord.Interaction):
 
                 await interaction.response.send_message(embed=embed, ephemeral=False)
 
-@bot.command()
-async def proposejeu(ctx):
-    """ Propose un jeu aléatoire et affiche un bouton invisible sur son nom. """
+# 📌 Propose un jeu aléatoire
+@bot.tree.command(name="proposejeu")
+async def proposejeu(interaction: discord.Interaction):
+    """ Propose un jeu aléatoire """
     cursor.execute("SELECT name FROM games")
     games = cursor.fetchall()
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        view = JeuButton(jeu_choisi)
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=view)
+        await interaction.response.send_message(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?")
     else:
-        await ctx.send("❌ Aucun jeu enregistré.")
+        await interaction.response.send_message("❌ Aucun jeu enregistré.")
 
-@bot.command()
-async def proposejeutype(ctx, game_type: str = None):
-    """ Propose un jeu aléatoire basé sur un type donné avec un bouton invisible sur son nom. """
-    
-    if not game_type:
-        await ctx.send("❌ Utilisation correcte : `/proposejeutype NomDuType`\nTape `/types` pour voir tous les types disponibles.")
-        return
-
+# 📌 Propose un jeu aléatoire selon un type
+@bot.tree.command(name="proposejeutype")
+async def proposejeutype(interaction: discord.Interaction, game_type: str):
+    """ Propose un jeu aléatoire basé sur un type donné """
     game_type = game_type.lower().strip()
     cursor.execute("SELECT name FROM games WHERE LOWER(type) LIKE %s", (f"%{game_type}%",))
     games = cursor.fetchall()
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        view = JeuButton(jeu_choisi)
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=view)
+        await interaction.response.send_message(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?")
     else:
-        await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `/types` pour voir les types existants.")
-
+        await interaction.response.send_message(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.")
+        
 # 📌 Commandes disponibles
-@bot.command()
-async def commandes(ctx):
-    """ Affiche la liste des commandes disponibles (sans menu déroulant). """
+@bot.tree.command(name="commandes")
+async def commandes(interaction: discord.Interaction):
+    """ Affiche la liste des commandes disponibles. """
     
-    # Vérifier si l'utilisateur est un admin
-    is_admin = ctx.author.guild_permissions.administrator
+    is_admin = interaction.user.guild_permissions.administrator
 
-    # Commandes accessibles à tous
     public_commands = """
 **📜 Commandes publiques :**
 🔹 `/listejeux` → Affiche tous les jeux enregistrés (triés A-Z)  
@@ -420,14 +388,11 @@ async def commandes(ctx):
 🔹 `/ask "NomDuJeu"` → Demande l'ajout d'un jeu  
 🔹 `/proposejeu` → Propose un jeu aléatoire  
 🔹 `/proposejeutype "TypeDeJeu"` → Propose un jeu d’un type donné  
-🔹 **Recherche d’un jeu :** Tape `/NomDuJeu` (ex: `/The Witcher 3`) pour voir sa fiche complète  
 """
 
-    # Commandes réservées aux admins
     admin_commands = """
 **🔒 Commandes Admin :**
 🔹 `/ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → Ajoute un jeu  
-🔹 `/supprjeu "Nom"` → Supprime un jeu  
 🔹 `/modifjeu "Nom" "Champ" "NouvelleValeur"` → Modifie un jeu  
 🔹 `/demandes` → Affiche les jeux demandés  
 🔹 `/supprdemande "NomDuJeu"` → Supprime une demande manuellement  
@@ -440,7 +405,7 @@ async def commandes(ctx):
     if is_admin:
         embed.add_field(name="🔒 Commandes Admin", value=admin_commands, inline=False)
 
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
     
 class JeuView(discord.ui.View):
     def __init__(self, jeu_nom):
