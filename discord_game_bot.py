@@ -361,20 +361,19 @@ class JeuButton(discord.ui.View):
 
 @bot.command(aliases=["ProposeJeu", "ProposerJeu"])
 async def proposejeu(ctx):
-    """ Propose un jeu aléatoire et permet de voir sa fiche en un clic. """
+    """ Propose un jeu aléatoire et permet de voir sa fiche en cliquant sur son nom. """
     cursor.execute("SELECT name FROM games")
     games = cursor.fetchall()
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        view = JeuButton(jeu_choisi)
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=view)
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://fakeurl.com/{jeu_choisi.replace(' ', '_')})** ?")
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
-@bot.command(aliases=["ProposeJeuType", "proposerJeuType", "ProposerJeuType"])
+@bot.command(name="proposejeutype", aliases=["ProposeJeuType", "proposerJeuType", "ProposerJeuType"])
 async def proposejeutype(ctx, game_type: str = None):
-    """ Propose un jeu aléatoire basé sur un type donné avec option de voir la fiche. """
+    """ Propose un jeu aléatoire basé sur un type donné et permet d'afficher sa fiche. """
     
     if not game_type:
         await ctx.send("❌ Utilisation correcte : `!proposejeutype NomDuType`\nTape `!types` pour voir tous les types disponibles.")
@@ -387,8 +386,7 @@ async def proposejeutype(ctx, game_type: str = None):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        view = JeuButton(jeu_choisi)
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=view)
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://fakeurl.com/{jeu_choisi.replace(' ', '_')})** ?")
     else:
         await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `!types` pour voir les types existants.")
 
@@ -417,8 +415,9 @@ async def commandes(ctx):
 🔹 `!listejeux` → Affiche tous les jeux enregistrés (triés A-Z)  
 🔹 `!types` → Affiche tous les types de jeux enregistrés  
 🔹 `!type "TypeDeJeu"` → Affiche tous les jeux d'un type donné  
-🔹 `!ask "NomDuJeu"` → Demande l'ajout d'un jeu  
+🔹 `!ask "NomDuJeu"` → Demande l'ajout d'un jeu (les admins peuvent voir cette liste avec `!demandes`)  
 🔹 `!proposejeu` → Propose un jeu aléatoire  
+🔹 `!proposejeutype "TypeDeJeu"` → Propose un jeu aléatoire selon un type spécifique  
 🔹 **Recherche d’un jeu :** Tape `!NomDuJeu` (ex: `!The Witcher 3`) pour voir sa fiche complète  
 """
 
@@ -428,8 +427,8 @@ async def commandes(ctx):
 🔹 `!ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → Ajoute un jeu  
 🔹 `!supprjeu "Nom"` → Supprime un jeu  
 🔹 `!modifjeu "Nom" "Champ" "NouvelleValeur"` → Modifie un jeu  
-🔹 `!demandes` → Affiche les jeux demandés  
-🔹 `!createtable` → Crée la table des demandes (si besoin)  
+🔹 `!demandes` → Affiche la liste des jeux demandés par les utilisateurs  
+🔹 `!createtable` → Crée la table des demandes (si elle n'existe pas encore)  
 """
 
     embed = discord.Embed(title="📜 Liste des commandes", color=discord.Color.blue())
@@ -438,7 +437,12 @@ async def commandes(ctx):
         value="Sélectionne une commande dans le menu ci-dessous. Elle s'écrira automatiquement dans ta barre de message.",
         inline=False
     )
+    embed.add_field(name="📂 Commandes publiques", value=public_commands, inline=False)
+
+    if is_admin:
+        embed.add_field(name="🔒 Commandes Admin", value=admin_commands, inline=False)
 
     await ctx.send(embed=embed, view=view)
+
 # Lancer le bot
 bot.run(TOKEN)
