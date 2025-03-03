@@ -123,17 +123,21 @@ async def ask(interaction: discord.Interaction, game_name: str):
 # 📌 Voir la liste des demandes (ADMIN)
 @bot.tree.command(name="demandes")
 @commands.has_permissions(administrator=True)
+@bot.tree.command(name="demandes")
+@commands.has_permissions(administrator=True)
 async def demandes(interaction: discord.Interaction):
-    """ Affiche la liste des jeux demandés avec l'utilisateur qui l'a demandé """
-    cursor.execute("SELECT username, game_name FROM game_requests ORDER BY date DESC")
+    """ Affiche la liste des jeux demandés avec l'utilisateur et la date d'ajout (Jour/Mois) """
+    cursor.execute("SELECT username, game_name, date FROM game_requests ORDER BY date DESC")
     requests = cursor.fetchall()
 
     if requests:
-        request_list = "\n".join([f"- **{r[1]}** (demandé par {r[0]})" for r in requests])
+        request_list = "\n".join(
+            f"- **{r[1]}** (demandé par {r[0]} le {r[2].strftime('%d/%m')})" for r in requests
+        )
         await interaction.response.send_message(f"📜 **Liste des jeux demandés :**\n```{request_list}```")
     else:
         await interaction.response.send_message("📭 **Aucune demande en attente.**")
-
+        
 # 📌 Supprimer une demande manuellement (ADMIN)
 @bot.tree.command(name="supprdemande")
 @commands.has_permissions(administrator=True)
