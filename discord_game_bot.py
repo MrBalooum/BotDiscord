@@ -42,7 +42,7 @@ def save_database():
     print("📂 Base de données sauvegardée avec succès sur Railway.")
 
 # 📌 Modifier un jeu
-@bot.command()
+@bot.command(aliases=["modifjeu", "modiffjeu", "Modifjeu", "Modiffjeu"])
 @commands.has_permissions(administrator=True)
 async def modifjeu(ctx, name: str, field: str, new_value: str):
     """ Modifie une valeur d'un jeu existant """
@@ -64,7 +64,7 @@ async def modifjeu(ctx, name: str, field: str, new_value: str):
         await ctx.send(f"❌ Erreur lors de la modification du jeu : {str(e)}")
 
 # 📌 Ajouter un jeu
-@bot.command()
+@bot.command(aliases=["Ajoutjeu", "ajoutjeu"])
 @commands.has_permissions(administrator=True)
 async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
     try:
@@ -80,7 +80,7 @@ async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, du
         await ctx.send(f"❌ Erreur lors de l'ajout du jeu : {str(e)}")
 
 # 📌 Supprimer un jeu
-@bot.command()
+@bot.command(aliases=["supprjeu", "Supprjeu"])
 @commands.has_permissions(administrator=True)
 async def supprjeu(ctx, name: str):
     try:
@@ -98,16 +98,17 @@ async def supprjeu(ctx, name: str):
         await ctx.send(f"❌ Erreur lors de la suppression du jeu : {str(e)}")
 
 # 📌 Liste des jeux enregistrés
-@bot.command()
+@bot.command(aliases=["Listejeux", "listejeu", "Listejeu", "listejeux])
 async def listejeux(ctx):
-    try:
-        cursor.execute("SELECT name FROM games")
-        games = cursor.fetchall()
-        if games:
-            game_list = "\n".join([game[0].capitalize() for game in games])
-            await ctx.send(f"🎮 **Liste des jeux enregistrés :**\n```{game_list}```")
-        else:
-            await ctx.send("❌ Aucun jeu enregistré.")
+    """ Affiche tous les jeux enregistrés, triés par ordre alphabétique. """
+    cursor.execute("SELECT name FROM games ORDER BY LOWER(name) ASC")
+    games = cursor.fetchall()
+
+    if games:
+        game_list = "\n".join([game[0].capitalize() for game in games])
+        await ctx.send(f"🎮 **Liste des jeux enregistrés (triée A-Z) :**\n```{game_list}```")
+    else:
+        await ctx.send("❌ Aucun jeu enregistré.")
     except Exception as e:
         await ctx.send(f"❌ Erreur lors de la récupération des jeux : {str(e)}")
 
@@ -149,8 +150,9 @@ async def on_message(message):
             await bot.process_commands(message)
 
 # 📌 Recherche par type (`!type`)
-@bot.command()
+@bot.command(aliases=["Types", "Type", "types", "types"])
 async def type(ctx, game_type: str = None):
+
     """ Affiche tous les jeux correspondant à un type donné. """
     if game_type is None:
         await ctx.send("❌ Utilisation correcte : `!type NomDuType`\nTape `!types` pour voir tous les types disponibles.")
@@ -192,7 +194,7 @@ async def types(ctx):
         await ctx.send("❌ Aucun type de jeu trouvé dans la base.")
 
 # 📌 Proposer un jeu aléatoire
-@bot.command()
+@bot.command(aliases=["ProposeJeu", "ProposeJeu", "proposejeu", "proposejeux"])
 async def proposejeu(ctx):
     """ Sélectionne un jeu aléatoire et propose de voir sa fiche. """
     cursor.execute("SELECT name FROM games")
@@ -241,17 +243,20 @@ def get_steam_image(steam_link):
     return None
 
 # 📌 Commandes disponibles
-@bot.command()
+@bot.command(aliases=["Commande", "commande", "Commandes", "commandes"])
 async def commandes(ctx):
+    """ Affiche la liste des commandes disponibles. """
     commandes_list = """
 **📜 Liste des commandes disponibles :**
 🔹 `!ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → (ADMIN) Ajoute un jeu  
 🔹 `!supprjeu "Nom"` → (ADMIN) Supprime un jeu  
 🔹 `!modifjeu "Nom" "Champ" "NouvelleValeur"` → (ADMIN) Modifie un jeu  
-🔹 `!listejeux` → Affiche tous les jeux enregistrés  
+🔹 `!listejeux` → Affiche tous les jeux enregistrés (triés A-Z)  
+🔹 `!types` → Affiche tous les types de jeux enregistrés  
 🔹 `!type "TypeDeJeu"` → Affiche tous les jeux d'un type donné  
 🔹 `!proposejeu` → Propose un jeu aléatoire  
 🔹 `!commandes` → Affiche cette liste  
+🔹 **Recherche d’un jeu :** Tape `!NomDuJeu` (ex: `!The Witcher 3`) pour voir sa fiche complète  
 """
     await ctx.send(commandes_list)
 
