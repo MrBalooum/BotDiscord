@@ -399,7 +399,6 @@ async def commandes(interaction: discord.Interaction):
     is_admin = interaction.user.guild_permissions.administrator
 
     public_commands = """
-**📜 Commandes publiques :**
 🔹 `/listejeux` → Affiche tous les jeux enregistrés (triés A-Z)  
 🔹 `/types` → Affiche tous les types de jeux enregistrés  
 🔹 `/type "TypeDeJeu"` → Affiche tous les jeux d'un type donné  
@@ -407,18 +406,9 @@ async def commandes(interaction: discord.Interaction):
 🔹 `/proposejeu` → Propose un jeu aléatoire  
 🔹 `/proposejeutype "TypeDeJeu"` → Propose un jeu d’un type donné  
 """
-
-    admin_commands = """
-**🔒 Commandes Admin :**
-🔹 `/ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → Ajoute un jeu  
-🔹 `/modifjeu "Nom" "Champ" "NouvelleValeur"` → Modifie un jeu  
-🔹 `/demandes` → Affiche les jeux demandés  
-🔹 `/supprdemande "NomDuJeu"` → Supprime une demande manuellement  
-"""
-
+    
     embed = discord.Embed(title="📜 Liste des commandes", color=discord.Color.blue())
-    embed.add_field(name="📌 Instructions", value="Tape `/` suivi d'une lettre pour voir les commandes disponibles.", inline=False)
-    embed.add_field(name="🔹 Commandes publiques", value=public_commands, inline=False)
+    embed.add_field(name="📜 Commandes publiques", value=public_commands, inline=False)
 
     if is_admin:
         embed.add_field(name="🔒 Commandes Admin", value=admin_commands, inline=False)
