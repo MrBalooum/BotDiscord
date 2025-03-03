@@ -199,32 +199,60 @@ async def supprdemande(interaction: discord.Interaction, game_name: str):
 
 # 📌 Modifier un jeu
 @bot.tree.command(name="modifjeu")
-@commands.has_permissions(administrator=True)
-async def modifjeu(interaction: discord.Interaction, name: str, field: str, new_value: str):
-    """ Modifie un champ spécifique d'un jeu """
+@app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
+async def modifjeu(interaction: discord.Interaction, nom: str, champ: str, nouvelle_valeur: str):
+    """Modifie un champ spécifique d'un jeu.
+    
+    Les champs disponibles sont :
+    - sortie
+    - prix
+    - type
+    - durée
+    - cloud
+    - youtube
+    - steam
+    """
     try:
-        name = name.strip().lower()
-
-        cursor.execute("SELECT * FROM games WHERE LOWER(name) LIKE %s", (f"%{name}%",))
+        nom = nom.strip().lower()
+        cursor.execute("SELECT * FROM games WHERE LOWER(nom) LIKE %s", (f"%{nom}%",))
         jeu = cursor.fetchone()
 
         if not jeu:
-            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'.")
+            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{nom.capitalize()}'.", ephemeral=True)
             return
 
-        valid_fields = ["date de sortie", "prix", "type", "duree", "cloud", "youtube", "steam"]
-        if field.lower() not in valid_fields:
-            await interaction.response.send_message(f"❌ Le champ `{field}` n'est pas valide. Champs disponibles : {', '.join(valid_fields)}")
+        valid_fields = ["sortie", "prix", "type", "durée", "cloud", "youtube", "steam"]
+
+        # Gestion d'alias pour certains champs
+        if champ.lower() in ["date", "datesortie", "date de sortie"]:
+            champ = "sortie"
+        elif champ.lower() in ["cloud_disponible", "cloud"]:
+            champ = "cloud"
+        elif champ.lower() in ["durée", "duree"]:
+            champ = "durée"
+        elif champ.lower() in ["youtube_link", "youtube"]:
+            champ = "youtube"
+        elif champ.lower() in ["steam_link", "steam"]:
+            champ = "steam"
+
+        if champ.lower() not in valid_fields:
+            await interaction.response.send_message(
+                f"❌ Le champ '{champ}' n'est pas valide. Champs disponibles : {', '.join(valid_fields)}", ephemeral=True
+            )
             return
 
-        query = f"UPDATE games SET {field} = %s WHERE LOWER(name) LIKE %s"
-        cursor.execute(query, (new_value, f"%{name}%"))
+        query = f'UPDATE games SET "{champ}" = %s WHERE LOWER(nom) LIKE %s'
+        cursor.execute(query, (nouvelle_valeur, f"%{nom}%"))
         conn.commit()
 
-        await interaction.response.send_message(f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : **{field}** → {new_value}")
+        await interaction.response.send_message(
+            f"✅ Jeu '{jeu[1].capitalize()}' mis à jour : **{champ}** → {nouvelle_valeur}"
+        )
 
     except Exception as e:
-        await interaction.response.send_message(f"❌ Erreur lors de la modification du jeu : {str(e)}")
+        await interaction.response.send_message(
+            f"❌ Erreur lors de la modification du jeu : {str(e)}", ephemeral=True
+        )
 
 # 📌 Ajouter un jeu
 @bot.tree.command(name="ajoutjeu")
