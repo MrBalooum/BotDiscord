@@ -451,31 +451,31 @@ class JeuView(discord.ui.View):
         self.jeu_nom = jeu_nom
 
     @bot.event
- async def on_message(message):
-    """ Vérifie si un message contient un jeu cliqué et affiche la fiche. """
-    if message.author == bot.user:
-        return
-
-    # Vérifier si le message contient un "lien cliqué" vers un jeu
-    if "https://fake-link/" in message.content:
-        jeu_nom = message.content.split("https://fake-link/")[1].replace("_", " ").strip().lower()
-
-        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (jeu_nom,))
-        game_info = cursor.fetchone()
-
-        if game_info:
-            embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
-            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
-            embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
-            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
-            embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
-            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
-            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
-            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
-
-            await message.channel.send(embed=embed)
-
-    await bot.process_commands(message)
+    async def on_message(message):
+        """ Vérifie si un message contient un jeu cliqué et affiche la fiche. """
+        if message.author == bot.user:
+            return
+    
+        # Vérifier si le message contient un "lien cliqué" vers un jeu
+        if "https://fake-link/" in message.content:
+            jeu_nom = message.content.split("https://fake-link/")[1].replace("_", " ").strip().lower()
+    
+            cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (jeu_nom,))
+            game_info = cursor.fetchone()
+    
+            if game_info:
+                embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
+                embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
+                embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
+                embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
+                embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
+                embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
+                embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+                embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+    
+                await message.channel.send(embed=embed)
+    
+        await bot.process_commands(message)
     
 # Lancer le bot
 bot.run(TOKEN)
