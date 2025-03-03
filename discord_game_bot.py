@@ -361,14 +361,14 @@ class JeuButton(discord.ui.View):
 
 @bot.command(aliases=["ProposeJeu", "ProposerJeu"])
 async def proposejeu(ctx):
-    """ Propose un jeu aléatoire et permet d'afficher sa fiche en cliquant sur son nom. """
+    """ Propose un jeu aléatoire et affiche sa fiche en cliquant sur son nom. """
     cursor.execute("SELECT name FROM games")
     games = cursor.fetchall()
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        # Lien Discord qui déclenche l'affichage de la fiche du jeu
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/?message=!{jeu_choisi.replace(' ', '_')})** ?")
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id})** ?", 
+                       view=JeuView(jeu_choisi))
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
@@ -387,7 +387,8 @@ async def proposejeutype(ctx, game_type: str = None):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/?message=!{jeu_choisi.replace(' ', '_')})** ?")
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id})** ?", 
+                       view=JeuView(jeu_choisi))
     else:
         await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `!types` pour voir les types existants.")
 
@@ -445,17 +446,15 @@ async def commandes(ctx):
 
     await ctx.send(embed=embed, view=view)
 
-@bot.event
-async def on_message(message):
-    """ Vérifie si un message contient un jeu cliqué et affiche la fiche. """
-    if message.author == bot.user:
-        return
+class JeuView(discord.ui.View):
+    def __init__(self, jeu_nom):
+        super().__init__(timeout=300)
+        self.jeu_nom = jeu_nom
 
-    # Vérifier si le message commence par "!" pour détecter une commande de jeu
-    if message.content.startswith("!"):
-        jeu_nom = message.content[1:].strip().lower()
-
-        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (jeu_nom,))
+    @discord.ui.button(label="Voir la fiche", style=discord.ButtonStyle.primary)
+    async def show_game_info(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """ Envoie la fiche du jeu en réponse lorsqu'on clique sur le bouton. """
+        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (self.jeu_nom.lower(),))
         game_info = cursor.fetchone()
 
         if game_info:
@@ -468,9 +467,7 @@ async def on_message(message):
             embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
             embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
 
-            await message.channel.send(embed=embed)
-
-    await bot.process_commands(message)
+            await interaction.response.send_message(embed=embed)
     
 # Lancer le bot
 bot.run(TOKEN)
