@@ -43,39 +43,44 @@ def save_database():
 
 # 📌 Demander un jeu
 @bot.command(aliases=["Ask", "Demande", "demande"])
-
-async def ask(ctx, game_name: str):
-    """ Enregistre une demande de jeu """
+async def ask(ctx, *, game_name: str):
+    """ Ajoute une demande de jeu avec confirmation """
     user_id = ctx.author.id
     username = ctx.author.name
     game_name = game_name.strip().capitalize()
 
-    cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (game_name.lower(),))
-    existing = cursor.fetchone()
+    try:
+        # Vérifier si le jeu est déjà demandé
+        cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (game_name.lower(),))
+        existing = cursor.fetchone()
 
-    if existing:
-        await ctx.send(f"❌ **{game_name}** est déjà dans la liste des demandes.")
-        return
+        if existing:
+            await ctx.send(f"❌ **{game_name}** est déjà dans la liste des demandes.")
+            return
 
-    cursor.execute("INSERT INTO game_requests (user_id, username, game_name) VALUES (%s, %s, %s)", (user_id, username, game_name))
-    conn.commit()
+        # Ajouter la demande
+        cursor.execute("INSERT INTO game_requests (user_id, username, game_name) VALUES (%s, %s, %s)", (user_id, username, game_name))
+        conn.commit()
 
-    await ctx.send(f"📩 Demande pour **{game_name}** enregistrée ! Un admin pourra l'ajouter plus tard.")
+        await ctx.send(f"📩 **{game_name}** a été ajouté à la liste des demandes par {username} !")
+    
+    except Exception as e:
+        await ctx.send(f"❌ Erreur lors de l'ajout de la demande : {str(e)}")
+
 
 # 📌 Voir la liste des demandes (ADMIN)
 @bot.command(aliases=["Demandes", "ListeDemandes"])
 @commands.has_permissions(administrator=True)
-
 async def demandes(ctx):
     """ Affiche la liste des jeux demandés avec l'utilisateur qui l'a demandé """
     cursor.execute("SELECT username, game_name FROM game_requests ORDER BY date DESC")
     requests = cursor.fetchall()
 
     if requests:
-        request_list = "\n".join([f"- {r[1]} (demandé par {r[0]})" for r in requests])
+        request_list = "\n".join([f"- **{r[1]}** (demandé par {r[0]})" for r in requests])
         await ctx.send(f"📜 **Liste des jeux demandés :**\n```{request_list}```")
     else:
-        await ctx.send("📭 Aucune demande en attente.")
+        await ctx.send("📭 **Aucune demande en attente.**")
 
 # 📌 Supprimer une demande manuellement (ADMIN)
 @bot.command(aliases=["Supprdemande", "Retirerdemande"])
@@ -130,26 +135,20 @@ async def modifjeu(ctx, name: str, field: str, new_value: str):
 @bot.command(aliases=["AjoutJeu", "ajoutJeu"])
 @commands.has_permissions(administrator=True)
 async def ajoutjeu(ctx, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
-    """ Ajoute un jeu à la liste principale et le retire des demandes s'il existait dans !ask. """
+    """ Ajoute un jeu à la liste et le supprime des demandes s'il existait dans !ask """
     try:
-        # Ajout du jeu dans la table "games"
+        # Ajout du jeu dans la base
         cursor.execute(
             "INSERT INTO games (name, release_date, price, type, duration, cloud_available, youtube_link, steam_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
             (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link)
         )
         save_database()
 
-        # Vérifier si le jeu était dans les demandes de jeux (!ask)
-        cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
-        demande = cursor.fetchone()
+        # Supprimer la demande associée
+        cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
+        conn.commit()
 
-        if demande:
-            # Supprimer la demande si elle existe
-            cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
-            conn.commit()
-            await ctx.send(f"✅ Jeu '{name}' ajouté avec succès et retiré des demandes !")
-        else:
-            await ctx.send(f"✅ Jeu '{name}' ajouté avec succès !")
+        await ctx.send(f"✅ **{name}** ajouté avec succès et retiré des demandes !")
 
     except psycopg2.IntegrityError:
         await ctx.send(f"❌ Ce jeu existe déjà dans la base de données : **{name}**")
