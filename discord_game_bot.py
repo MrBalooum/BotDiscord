@@ -109,7 +109,7 @@ async def listejeux(ctx):
         await ctx.send(f"🎮 **Liste des jeux enregistrés (triée A-Z) :**\n```{game_list}```")
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
-    except Exception as e:
+except Exception as e:
         await ctx.send(f"❌ Erreur lors de la récupération des jeux : {str(e)}")
 
 # 📌 Recherche par nom (`!NomDuJeu`)
