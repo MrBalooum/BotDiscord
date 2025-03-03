@@ -40,40 +40,45 @@ import discord
 from discord.ext import commands
 
 class CommandesView(discord.ui.View):
-    def __init__(self, ctx, is_admin):
-        super().__init__(timeout=120)  # Les boutons restent 2 minutes
-        self.ctx = ctx
-        self.is_admin = is_admin
+    def __init__(self, is_admin):
+        super().__init__(timeout=120)  # Les boutons restent actifs 2 minutes
 
-        # Commandes publiques
-        public_commands = [
-            "!listejeux", "!types", "!type NomDuType", "!ask NomDuJeu", "!proposejeu", "!proposejeutype NomDuType"
-        ]
+        # Commandes accessibles à tous (avec description)
+        public_commands = {
+            "!listejeux": "Affiche tous les jeux enregistrés (triés A-Z)",
+            "!types": "Affiche tous les types de jeux enregistrés",
+            "!type NomDuType": "Affiche tous les jeux d'un type donné",
+            "!ask NomDuJeu": "Demande l'ajout d'un jeu",
+            "!proposejeu": "Propose un jeu aléatoire",
+            "!proposejeutype NomDuType": "Propose un jeu aléatoire selon un type spécifique"
+        }
 
-        # Commandes réservées aux admins
-        admin_commands = [
-            "!ajoutjeu Nom Date Prix Type(s) Durée Cloud LienYouTube LienSteam",
-            "!supprjeu Nom",
-            "!modifjeu Nom Champ NouvelleValeur",
-            "!demandes"
-        ]
+        # Commandes réservées aux admins (avec description)
+        admin_commands = {
+            "!ajoutjeu Nom Date Prix Type(s) Durée Cloud LienYouTube LienSteam": "Ajoute un jeu à la base",
+            "!supprjeu Nom": "Supprime un jeu de la base",
+            "!modifjeu Nom Champ NouvelleValeur": "Modifie un champ d’un jeu existant",
+            "!demandes": "Affiche la liste des jeux demandés"
+        }
 
         # Ajouter les boutons pour les commandes publiques
-        for command in public_commands:
-            self.add_item(CommandButton(command))
+        for command, description in public_commands.items():
+            self.add_item(CommandButton(command, description))
 
         # Ajouter les boutons pour les commandes admin uniquement si l'utilisateur est admin
         if is_admin:
-            for command in admin_commands:
-                self.add_item(CommandButton(command))
+            for command, description in admin_commands.items():
+                self.add_item(CommandButton(command, description))
 
 class CommandButton(discord.ui.Button):
-    def __init__(self, command):
-        super().__init__(label=command, style=discord.ButtonStyle.primary)
+    def __init__(self, command, description):
+        super().__init__(label=command, style=discord.ButtonStyle.primary, row=0)
+        self.command = command
+        self.description = description
 
     async def callback(self, interaction: discord.Interaction):
         """ Quand on clique sur un bouton, il écrit la commande dans la barre de message sans l'envoyer. """
-        await interaction.response.send_message(f"{self.label}", ephemeral=True)
+        await interaction.response.send_message(f"/{self.command}", ephemeral=True, delete_after=1)  # Pré-écrit la commande dans la barre
 
 def save_database():
     """ Sauvegarde immédiate des changements dans PostgreSQL. """
@@ -390,13 +395,12 @@ async def commandes(ctx):
 🔹 `!demandes` → Affiche les jeux demandés  
 🔹 `!createtable` → Crée la table des demandes (si besoin)  
 """
-
-    is_admin = ctx.author.guild_permissions.administrator
-    view = CommandesView(ctx, is_admin)
+    is_admin = ctx.author.guild_permissions.administrator  # Vérifie si l'utilisateur est admin
+    view = CommandesView(is_admin)  # Génère la liste des commandes selon le rôle
 
     embed = discord.Embed(title="📜 Liste des commandes", color=discord.Color.blue())
-    embed.add_field(name="Utilisation", value="Clique sur une commande pour la copier dans ta barre de message.", inline=False)
-
+    embed.add_field(name="📌 Instructions", value="Clique sur une commande pour la copier dans ta barre de message.", inline=False)
+    
     await ctx.send(embed=embed, view=view)
 
 # Lancer le bot
