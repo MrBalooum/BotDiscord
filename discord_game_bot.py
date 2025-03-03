@@ -359,6 +359,29 @@ class JeuButton(discord.ui.View):
         else:
             await interaction.response.send_message("❌ Jeu introuvable.", ephemeral=True)
 
+class JeuButton(discord.ui.View):
+    def __init__(self, jeu_nom):
+        super().__init__(timeout=300)
+        self.jeu_nom = jeu_nom
+
+    @discord.ui.button(label="Voir la fiche", style=discord.ButtonStyle.link, url="https://discord.com")
+    async def show_game_info(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """ Envoie la fiche du jeu quand on clique sur son nom. """
+        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (self.jeu_nom.lower(),))
+        game_info = cursor.fetchone()
+
+        if game_info:
+            embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
+            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
+            embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
+            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
+            embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
+            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
+            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+
+            await interaction.response.send_message(embed=embed, ephemeral=False)
+
 @bot.command(aliases=["ProposeJeu", "ProposerJeu"])
 async def proposejeu(ctx):
     """ Propose un jeu aléatoire et affiche sa fiche en cliquant sur son nom. """
@@ -367,8 +390,7 @@ async def proposejeu(ctx):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        # Lien cliquable qui déclenche l'affichage de la fiche du jeu
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://fake-link/{jeu_choisi.replace(' ', '_')})** ?")
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=JeuButton(jeu_choisi))
     else:
         await ctx.send("❌ Aucun jeu enregistré.")
 
@@ -387,7 +409,7 @@ async def proposejeutype(ctx, game_type: str = None):
 
     if games:
         jeu_choisi = random.choice(games)[0]
-        await ctx.send(f"🎮 Pourquoi ne pas essayer **[{jeu_choisi.capitalize()}](https://fake-link/{jeu_choisi.replace(' ', '_')})** ?")
+        await ctx.send(f"🎮 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", view=JeuButton(jeu_choisi))
     else:
         await ctx.send(f"❌ Aucun jeu trouvé pour le type '{game_type.capitalize()}'.\nTape `!types` pour voir les types existants.")
 
