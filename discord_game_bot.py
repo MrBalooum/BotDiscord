@@ -197,35 +197,37 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Vérifie si le message commence par "!" (évite les erreurs)
     if message.content.startswith("!"):
         jeu_nom = message.content[1:].strip().lower()
 
-        cursor.execute("""
-            SELECT name, release_date, price, type, duration, cloud_available, youtube_link, steam_link
-            FROM games WHERE LOWER(name) LIKE %s
-        """, (f"%{jeu_nom}%",))
+        try:
+            conn.rollback()  # 🔥 Annule toute transaction en erreur
+            cursor.execute("""
+                SELECT name, release_date, price, type, duration, cloud_available, youtube_link, steam_link
+                FROM games WHERE LOWER(name) LIKE %s
+            """, (f"%{jeu_nom}%",))
+            games_found = cursor.fetchall()
 
-        games_found = cursor.fetchall()
+            if len(games_found) == 1:
+                game_info = games_found[0]
+                embed = discord.Embed(
+                    title=f"🎮 **{game_info[0].capitalize()}**",
+                    color=discord.Color.blue()
+                )
+                embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
+                embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
+                embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
+                embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
+                embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
+                embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
+                embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
 
-        if len(games_found) == 1:
-            game_info = games_found[0]
+                await message.channel.send(embed=embed)
+            else:
+                await bot.process_commands(message)
 
-            embed = discord.Embed(
-                title=f"🎮 **{game_info[0].capitalize()}**",  # Titre en gras
-                color=discord.Color.blue()
-            )
-            embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
-            embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
-            embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
-            embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
-            embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
-            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
-            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
-
-            await message.channel.send(embed=embed)
-        else:
-            await bot.process_commands(message)
+        except psycopg2.Error as e:
+            await message.channel.send(f"❌ Erreur SQL : {str(e)}")
 
 # 📌 Recherche par type (`!type`)
 @bot.command(aliases=["Types", "Type"])
