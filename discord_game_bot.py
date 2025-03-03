@@ -80,11 +80,16 @@ class CommandesDropdown(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        """ Quand on sélectionne une commande, elle s'écrit dans la barre de message. """
+        """ Quand on sélectionne une commande, elle est pré-écrite dans la barre de message (sans être envoyée). """
         selected_command = self.values[0]
-        await interaction.response.send_message(
-            content=f"{selected_command}",
-            ephemeral=True
+
+        # Empêche le bot d'envoyer un message
+        await interaction.response.defer()
+
+        # Simule l'écriture de la commande dans la barre de message
+        await interaction.followup.send(
+            f"**Copie-colle cette commande dans ta barre de message :**\n```{selected_command}```",
+            ephemeral=True  # Message visible uniquement par l'utilisateur
         )
 
 class CommandesView(discord.ui.View):
