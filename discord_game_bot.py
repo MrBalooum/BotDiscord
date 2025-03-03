@@ -318,12 +318,15 @@ async def commandes(ctx):
 🔹 `!ajoutjeu "Nom" "Date" "Prix" "Type(s)" "Durée" "Cloud" "Lien YouTube" "Lien Steam"` → (ADMIN) Ajoute un jeu  
 🔹 `!supprjeu "Nom"` → (ADMIN) Supprime un jeu  
 🔹 `!modifjeu "Nom" "Champ" "NouvelleValeur"` → (ADMIN) Modifie un jeu  
+🔹 `!demandes` → (ADMIN) Voir la liste des jeux demandés  
+🔹 `!supprdemande "NomDuJeu"` → (ADMIN) Supprime une demande de jeu  
 🔹 `!listejeux` → Affiche tous les jeux enregistrés (triés A-Z)  
 🔹 `!types` → Affiche tous les types de jeux enregistrés  
 🔹 `!type "TypeDeJeu"` → Affiche tous les jeux d'un type donné  
 🔹 `!proposejeu` → Propose un jeu aléatoire  
 🔹 `!commandes` → Affiche cette liste  
 🔹 **Recherche d’un jeu :** Tape `!NomDuJeu` (ex: `!The Witcher 3`) pour voir sa fiche complète  
+🔹 `!ask "NomDuJeu"` → Demande l'ajout d'un jeu  
 """
     await ctx.send(commandes_list)
 
