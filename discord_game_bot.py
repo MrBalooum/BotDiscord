@@ -112,7 +112,7 @@ async def fiche(interaction: discord.Interaction, game: str):
         embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
         embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
         embed.add_field(name="🎮 Type", value=game_info[3].capitalize(), inline=False)
-        embed.add_field(name="⏳ Durée", value=game_info[4], inline=False)
+        embed.add_field(name="⏳ Duree", value=game_info[4], inline=False)
         embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
         embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
         embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
@@ -207,7 +207,7 @@ async def modifjeu(interaction: discord.Interaction, nom: str, champ: str, nouve
     - sortie
     - prix
     - type
-    - durée
+    - duree
     - cloud
     - youtube
     - steam
@@ -224,7 +224,7 @@ async def modifjeu(interaction: discord.Interaction, nom: str, champ: str, nouve
         valid_fields = ["sortie", "prix", "type", "durée", "cloud", "youtube", "steam"]
 
         # Gestion d'alias pour certains champs
-        if champ.lower() in ["date", "datesortie", "date de sortie"]:
+        if champ.lower() in ["date", "datesortie", "date de sortie", "sortie"]:
             champ = "sortie"
         elif champ.lower() in ["cloud_disponible", "cloud"]:
             champ = "cloud"
