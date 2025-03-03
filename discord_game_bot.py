@@ -45,23 +45,35 @@ def save_database():
 @bot.command(aliases=["modiffjeu", "Modifjeu", "Modiffjeu"])
 @commands.has_permissions(administrator=True)
 async def modifjeu(ctx, name: str, field: str, new_value: str):
-    """ Modifie une valeur d'un jeu existant """
+    """ Modifie un champ spécifique d'un jeu """
     try:
-        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (name.lower(),))
+        # Normalisation du nom du jeu
+        name = name.strip().lower()
+
+        # Vérifier si le jeu existe
+        cursor.execute("SELECT * FROM games WHERE LOWER(name) = %s", (name,))
         jeu = cursor.fetchone()
 
         if not jeu:
-            await ctx.send(f"❌ Aucun jeu trouvé avec le nom '{name}'.")
+            await ctx.send(f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'. Vérifie l'orthographe ou utilise `!listejeux`.")
             return
 
+        # Vérifier que le champ existe
+        valid_fields = ["release_date", "price", "type", "duration", "cloud_available", "youtube_link", "steam_link"]
+        if field.lower() not in valid_fields:
+            await ctx.send(f"❌ Le champ `{field}` n'est pas valide. Champs disponibles : {', '.join(valid_fields)}")
+            return
+
+        # Modifier le champ
         query = f"UPDATE games SET {field} = %s WHERE LOWER(name) = %s"
-        cursor.execute(query, (new_value, name.lower()))
+        cursor.execute(query, (new_value, name))
         conn.commit()
 
-        await ctx.send(f"✅ Jeu '{name}' mis à jour : **{field}** → {new_value}")
+        await ctx.send(f"✅ Jeu '{name.capitalize()}' mis à jour : **{field}** → {new_value}")
 
     except Exception as e:
         await ctx.send(f"❌ Erreur lors de la modification du jeu : {str(e)}")
+
 
 # 📌 Ajouter un jeu
 @bot.command(aliases=["AjoutJeu", "Ajoutjeu"])
