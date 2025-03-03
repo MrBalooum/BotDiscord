@@ -152,7 +152,7 @@ async def on_message(message):
             await bot.process_commands(message)
 
 # 📌 Recherche par type (`!type`)
-@bot.command(aliases=["Types", "Type", "types"])
+@bot.command(aliases=["Types", "Type"])
 async def type(ctx, game_type: str = None):
 
     """ Affiche tous les jeux correspondant à un type donné. """
