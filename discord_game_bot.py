@@ -26,14 +26,14 @@ cursor = conn.cursor()
 # Création de la table "games" si elle n'existe pas encore
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     id SERIAL PRIMARY KEY,
-                    name TEXT UNIQUE, 
-                    release_date TEXT, 
-                    price TEXT, 
+                    nom TEXT UNIQUE, 
+                    sortie TEXT, 
+                    prix TEXT, 
                     type TEXT, 
-                    duration TEXT, 
-                    cloud_available TEXT, 
-                    youtube_link TEXT, 
-                    steam_link TEXT)''')
+                    duree TEXT, 
+                    cloud TEXT, 
+                    youtube TEXT, 
+                    steam TEXT)''')
 conn.commit()
 
 @bot.event
