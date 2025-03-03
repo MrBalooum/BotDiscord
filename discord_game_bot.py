@@ -36,6 +36,15 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
                     steam_link TEXT)''')
 conn.commit()
 
+@bot.event
+async def on_ready():
+    try:
+        # Synchronise les commandes slash du bot
+        await bot.tree.sync()
+        print("✅ Commandes slash synchronisées avec Discord !")
+    except Exception as e:
+        print(f"❌ Erreur de synchronisation des commandes slash : {e}")
+
 class CommandesDropdown(discord.ui.Select):
     def __init__(self, is_admin):
         """ Crée un menu déroulant avec les commandes disponibles. """
@@ -452,11 +461,5 @@ async def on_message(message):
 
     await bot.process_commands(message)  # Permet aux autres commandes de fonctionner normalement
 
-@bot.event
-async def on_ready():
-    bot.tree.clear_commands(guild=None)  # ⛔ Supprime tout
-    await bot.tree.sync()  # 🔄 Synchronise les commandes personnalisées
-    print("✅ Seules les commandes du bot sont activées !")
-    
 # Lancer le bot
 bot.run(TOKEN)
