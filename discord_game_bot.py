@@ -194,7 +194,15 @@ async def supprdemande(interaction: discord.Interaction, game_name: str):
 @bot.tree.command(name="modifjeu", description="Modifie un champ d'un jeu (ADMIN)")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
 async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str):
-    """Modifie une propriété (ex : prix, type, etc.) d'un jeu existant."""
+    """
+    Modifie une propriété d'un jeu existant.
+    
+    Format d'utilisation :
+    /modifjeu "Nom du jeu" "Champ" "Nouvelle valeur"
+    
+    Exemple :
+    /modifjeu "Halo Infinite" "prix" "39.99 €"
+    """
     try:
         name_clean = name.strip().lower()
         cursor.execute("""
@@ -206,6 +214,7 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
         if not jeu:
             await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'.", ephemeral=True)
             return
+
         mapping = {
             "nom": "nom",
             "name": "nom",
@@ -221,7 +230,7 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
         champ_clean = champ.strip().lower()
         if champ_clean not in mapping:
             await interaction.response.send_message(
-                f"❌ Le champ '{champ}' n'est pas valide. Champs disponibles : {', '.join(mapping.keys())}",
+                f"❌ Le champ '{champ}' n'est pas valide. Champs autorisés : {', '.join(mapping.keys())}",
                 ephemeral=True
             )
             return
@@ -229,7 +238,7 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
         query = f'UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s'
         cursor.execute(query, (nouvelle_valeur, f"%{name_clean}%"))
         conn.commit()
-        await interaction.response.send_message(f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : **{champ_clean}** → {nouvelle_valeur}")
+        await interaction.response.send_message(f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : {champ_clean} → {nouvelle_valeur}")
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la modification du jeu : {str(e)}", ephemeral=True)
