@@ -167,24 +167,6 @@ async def ask(interaction: discord.Interaction, game_name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout de la demande : {str(e)}", ephemeral=True)
 
-@bot.tree.command(name="demandes", description="Affiche la liste des demandes (ADMIN)")
-@app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
-async def demandes(interaction: discord.Interaction):
-    """Affiche la liste des demandes d'ajout de jeu."""
-    try:
-        cursor.execute("SELECT username, game_name, date FROM game_requests ORDER BY date DESC")
-        requests_data = cursor.fetchall()
-        if requests_data:
-            request_list = "\n".join(
-                f"- **{r[1]}** (demandé par {r[0]} le {r[2].strftime('%d/%m')})" for r in requests_data
-            )
-            await interaction.response.send_message(f"📜 **Liste des jeux demandés :**\n```{request_list}```")
-        else:
-            await interaction.response.send_message("📭 **Aucune demande en attente.**")
-    except Exception as e:
-        conn.rollback()
-        await interaction.response.send_message(f"❌ Erreur SQL: {str(e)}", ephemeral=True)
-
 @bot.tree.command(name="supprdemande", description="Supprime une demande (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def supprdemande(interaction: discord.Interaction, game_name: str):
