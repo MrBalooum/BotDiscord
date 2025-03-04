@@ -294,12 +294,11 @@ async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
 async def fav(interaction: discord.Interaction, name: str):
     """
     Ajoute un jeu aux favoris de l'utilisateur.
-    
     Utilisation : /fav "Nom du jeu"
     """
     try:
         name_clean = name.strip().lower()
-        # Vérifier que le jeu existe
+        # Vérifier que le jeu existe dans la table games
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{name_clean}%",))
         jeu = cursor.fetchone()
         if not jeu:
@@ -307,23 +306,38 @@ async def fav(interaction: discord.Interaction, name: str):
             return
         # Ajouter dans la table user_favorites
         try:
-            cursor.execute(
-                "INSERT INTO user_favorites (user_id, game) VALUES (%s, %s)",
-                (interaction.user.id, jeu[0])
-            )
+            cursor.execute("INSERT INTO user_favorites (user_id, game) VALUES (%s, %s)", (interaction.user.id, jeu[0]))
             conn.commit()
         except psycopg2.IntegrityError:
             conn.rollback()
             await interaction.response.send_message(f"❌ Le jeu **{jeu[0].capitalize()}** est déjà dans vos favoris.", ephemeral=True)
             return
-        # Envoi d'un message dans le salon de la commande
         await interaction.response.send_message(f"✅ **{jeu[0].capitalize()}** a été ajouté à vos favoris !")
-        # Optionnel : envoyer un message de confirmation dans le salon public du serveur
+        # Optionnel : envoi d'une confirmation dans le canal public
         public_channel = interaction.channel
         await public_channel.send(f"📌 {interaction.user.name} a ajouté **{jeu[0].capitalize()}** à ses favoris.")
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout aux favoris : {str(e)}", ephemeral=True)
+
+@fav.autocomplete("name")
+async def fav_autocomplete(interaction: discord.Interaction, current: str):
+    """Propose uniquement les jeux non déjà favoris pour l'utilisateur."""
+    current_lower = current.strip().lower()
+    try:
+        # Récupérer les jeux correspondant à la saisie
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{current_lower}%",))
+        games = cursor.fetchall()
+        # Récupérer la liste des favoris de l'utilisateur
+        cursor.execute("SELECT game FROM user_favorites WHERE user_id = %s", (interaction.user.id,))
+        favs = {row[0].lower() for row in cursor.fetchall()}
+        suggestions = [game[0] for game in games if game[0].lower() not in favs]
+        suggestions = list(set(suggestions))
+        suggestions.sort(key=str.lower)
+        return [app_commands.Choice(name=s.capitalize(), value=s) for s in suggestions][:25]
+    except Exception as e:
+        conn.rollback()
+        return []
 
 @bot.tree.command(name="favoris", description="Affiche votre liste de favoris")
 async def favoris(interaction: discord.Interaction):
@@ -347,7 +361,6 @@ async def favoris(interaction: discord.Interaction):
 async def unfav(interaction: discord.Interaction, name: str):
     """
     Retire un jeu de vos favoris.
-    
     Utilisation : /unfav "Nom du jeu"
     """
     try:
@@ -363,6 +376,21 @@ async def unfav(interaction: discord.Interaction, name: str):
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression des favoris : {str(e)}", ephemeral=True)
+
+@unfav.autocomplete("name")
+async def unfav_autocomplete(interaction: discord.Interaction, current: str):
+    """Propose uniquement les jeux déjà dans vos favoris."""
+    current_lower = current.strip().lower()
+    try:
+        cursor.execute("SELECT game FROM user_favorites WHERE user_id = %s", (interaction.user.id,))
+        favs = cursor.fetchall()
+        suggestions = [row[0] for row in favs if current_lower in row[0].lower()]
+        suggestions = list(set(suggestions))
+        suggestions.sort(key=str.lower)
+        return [app_commands.Choice(name=s.capitalize(), value=s) for s in suggestions][:25]
+    except Exception as e:
+        conn.rollback()
+        return []
 
 @bot.tree.command(name="ajoutjeu", description="Ajoute un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
@@ -828,28 +856,41 @@ class PaginationView(discord.ui.View):
         else:
             await interaction.response.defer()
 
-############################################
-#         COMMANDES CLASSIQUES
-############################################
-
-@bot.command(aliases=["Supprjeu"])
+@bot.tree.command(name="supprjeu", description="Supprime un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
-async def supprjeu(ctx, name: str):
-    """Supprime un jeu de la base et notifie dans le salon 'général'."""
+async def supprjeu(interaction: discord.Interaction, name: str):
+    """
+    Supprime un jeu de la base de données.
+    Utilisation : /supprjeu "Nom du jeu"
+    """
     try:
-        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) = %s", (name.lower(),))
+        name_clean = name.strip().lower()
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{name_clean}%",))
         jeu = cursor.fetchone()
         if jeu:
-            cursor.execute("DELETE FROM games WHERE LOWER(nom) = %s", (name.lower(),))
+            cursor.execute("DELETE FROM games WHERE LOWER(nom) = %s", (name_clean,))
             save_database()
-            await ctx.send(f"🗑️ Jeu '{name.capitalize()}' supprimé avec succès !")
-            general_channel = discord.utils.get(ctx.guild.text_channels, name="général")
+            await interaction.response.send_message(f"🗑️ Jeu '{name.capitalize()}' supprimé avec succès !")
+            general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
             if general_channel:
                 await general_channel.send(f"📣 **{name.capitalize()}** n'est plus disponible !")
         else:
-            await ctx.send(f"❌ Aucun jeu trouvé avec le nom '{name}'.")
+            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name}'.", ephemeral=True)
     except Exception as e:
         conn.rollback()
-        await ctx.send(f"❌ Erreur lors de la suppression du jeu : {str(e)}")
+        await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
+
+@supprjeu.autocomplete("name")
+async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
+    """Propose les noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
+    current_lower = current.strip().lower()
+    try:
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
+        results = cursor.fetchall()
+        suggestions = [row[0] for row in results]
+        return [app_commands.Choice(name=s.capitalize(), value=s) for s in suggestions]
+    except Exception as e:
+        conn.rollback()
+        return []
 
 bot.run(TOKEN)
