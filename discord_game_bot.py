@@ -23,7 +23,11 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 conn = psycopg2.connect(DATABASE_URL, sslmode="require", client_encoding="UTF8")
 cursor = conn.cursor()
 
-# Création (ou mise à jour) de la table "games"
+# (Optionnel) Pour être sûr que la table a la bonne structure, vous pouvez supprimer l'ancienne table :
+# cursor.execute("DROP TABLE IF EXISTS games")
+# conn.commit()
+
+# Création de la table "games" avec la colonne "nom" et la date d'ajout
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
     id SERIAL PRIMARY KEY,
     nom TEXT UNIQUE,
@@ -372,29 +376,25 @@ async def proposejeutype(interaction: discord.Interaction, game_type: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la proposition du jeu par type : {str(e)}", ephemeral=True)
 
-# /style : Affiche tous les types de jeux disponibles
-@bot.tree.command(name="style", description="Affiche tous les types de jeux disponibles")
-async def style(interaction: discord.Interaction):
+# Nouveau : /supprjeu - Supprime un jeu et notifie dans "général" (ADMIN)
+@bot.tree.command(name="supprjeu", description="Supprime un jeu de la base de données")
+@commands.has_permissions(administrator=True)
+async def supprjeu_slash(interaction: discord.Interaction, name: str):
     try:
-        cursor.execute("SELECT DISTINCT type FROM games")
-        types_found = cursor.fetchall()
-        unique_types = set()
-        for row in types_found:
-            types_list = row[0].lower().split(",")
-            unique_types.update([t.strip().capitalize() for t in types_list])
-        if unique_types:
-            type_list = "\n".join(f"- {t}" for t in sorted(unique_types))
-            embed = discord.Embed(
-                title="🎮 Types de jeux disponibles",
-                description=type_list,
-                color=discord.Color.blue()
-            )
-            await interaction.response.send_message(embed=embed)
+        cursor.execute("SELECT * FROM games WHERE LOWER(nom) = %s", (name.lower(),))
+        jeu = cursor.fetchone()
+        if jeu:
+            cursor.execute("DELETE FROM games WHERE LOWER(nom) = %s", (name.lower(),))
+            save_database()
+            await interaction.response.send_message(f"🗑️ Jeu '{name.capitalize()}' supprimé avec succès !")
+            general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
+            if general_channel:
+                await general_channel.send(f"📣 **{name.capitalize()}** n'est plus disponible !")
         else:
-            await interaction.response.send_message("❌ Aucun type de jeu trouvé dans la base.")
+            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name}'.", ephemeral=True)
     except Exception as e:
         conn.rollback()
-        await interaction.response.send_message(f"❌ Erreur lors de la récupération des types : {str(e)}", ephemeral=True)
+        await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
 
 ############################################
 #         CLASSE DE PAGINATION             #
@@ -435,7 +435,10 @@ async def supprjeu(ctx, name: str):
         if jeu:
             cursor.execute("DELETE FROM games WHERE LOWER(nom) = %s", (name.lower(),))
             save_database()
-            await ctx.send(f"🗑️ Jeu '{name}' supprimé avec succès !")
+            await ctx.send(f"🗑️ Jeu '{name.capitalize()}' supprimé avec succès !")
+            general_channel = discord.utils.get(ctx.guild.text_channels, name="général")
+            if general_channel:
+                await general_channel.send(f"📣 **{name.capitalize()}** n'est plus disponible !")
         else:
             await ctx.send(f"❌ Aucun jeu trouvé avec le nom '{name}'.")
     except Exception as e:
