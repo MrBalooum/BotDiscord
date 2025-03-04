@@ -391,10 +391,10 @@ async def supprjeu_slash(interaction: discord.Interaction, name: str):
 
 @bot.tree.command(name="listejeux", description="Affiche les infos du Bundle et la liste des jeux (15 par page)")
 async def listejeux(interaction: discord.Interaction):
-    """Envoie d'abord un message avec les infos du Bundle, puis un autre message contenant la liste des jeux."""
+    """Envoie deux messages : l'un avec les infos du bundle, l'autre avec la liste des jeux."""
     try:
         import re
-        # Récupération des informations pour le Bundle : colonnes "price" et "duration"
+        # Récupérer les infos pour le Bundle : colonnes "price" et "duration"
         cursor.execute("SELECT price, duration FROM games")
         data = cursor.fetchall()
         total_games = len(data)
@@ -413,17 +413,15 @@ async def listejeux(interaction: discord.Interaction):
                 t = float(t_match[0].replace(",", "."))
                 total_time += int(round(t))
         
-        # Création d'un header stylé avec des emojis et le texte mis à jour
-        header = (
-            "**✨ Bundle Info ✨**\n"
-            f"**🎮 Jeux dans le Bundle :** {total_games}  |  "
-            f"**💶 Prix total :** {total_price:.2f} €  |  "
-            f"**⏳ Temps total de jeu :** {total_time} heures\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        # Création d'un header avec chaque info sur une ligne
+        bundle_info = (
+            "**🎮 Jeux dans le Bundle :** " + str(total_games) + "\n" +
+            "**💶 Prix total :** " + f"{total_price:.2f} €" + "\n" +
+            "**⏳ Temps total de jeu :** " + str(total_time) + " heures"
         )
         
-        # Envoyer le message du Bundle
-        await interaction.response.send_message(header)
+        # Envoyer le premier message avec les infos du Bundle
+        await interaction.response.send_message(bundle_info)
         
         # Récupérer la liste des jeux
         cursor.execute("SELECT nom FROM games ORDER BY LOWER(nom) ASC")
@@ -432,7 +430,7 @@ async def listejeux(interaction: discord.Interaction):
             await interaction.followup.send("❌ Aucun jeu enregistré.")
             return
         
-        # Nettoyage des noms pour supprimer d'éventuels marqueurs de spoiler (||)
+        # Nettoyer les noms pour supprimer d'éventuels marqueurs de spoiler et capitaliser
         game_names = [game[0].replace("||", "").strip().capitalize() for game in games]
         pages = [game_names[i:i+15] for i in range(0, len(game_names), 15)]
         embeds = []
@@ -444,11 +442,13 @@ async def listejeux(interaction: discord.Interaction):
             embed.description = "\n".join(f"• {name}" for name in page)
             embeds.append(embed)
         
+        # Envoyer le second message avec la liste des jeux
         if len(embeds) == 1:
             await interaction.followup.send(embed=embeds[0])
         else:
             view = PaginationView(embeds)
             await interaction.followup.send(embed=embeds[0], view=view)
+            
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la récupération des jeux : {str(e)}", ephemeral=True)
