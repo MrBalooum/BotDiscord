@@ -67,6 +67,17 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS game_requests (
 )''')
 conn.commit()
 
+# Création de la table "game_problems" (pour les problèmes signalés)
+cursor.execute('''CREATE TABLE IF NOT EXISTS game_problems (
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT,
+    username TEXT,
+    game TEXT,
+    message TEXT,
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)''')
+conn.commit()
+
 @bot.event
 async def on_ready():
     try:
