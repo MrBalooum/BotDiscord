@@ -389,60 +389,73 @@ async def supprjeu_slash(interaction: discord.Interaction, name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
 
-@bot.tree.command(name="listejeux", description="Affiche les jeux et infos du Bundle (15 par page)")
+@bot.tree.command(name="listejeux", description="Affiche les infos du Bundle et la liste des jeux (15 par page)")
 async def listejeux(interaction: discord.Interaction):
-    """Affiche la liste des jeux avec les infos du Bundle sur une seule ligne."""
+    """
+    Envoie d'abord un message avec les infos du Bundle, puis un autre message contenant la liste des jeux.
+    Les informations du Bundle comprennent :
+    • Le nombre de jeux dans la bibliothèque
+    • Le prix total (addition des valeurs de la colonne 'price')
+    • Le temps total de jeu (addition des nombres extraits de la colonne 'duration')
+    """
     try:
-        # Récupérer les infos pour le Bundle : on utilise les colonnes "price" et "duration"
+        import re
+        # Récupération des informations pour le Bundle
         cursor.execute("SELECT price, duration FROM games")
         data = cursor.fetchall()
         total_games = len(data)
         total_price = 0.0
         total_time = 0
-        import re
         for row in data:
             price_str, duration_str = row
-            # Extraction du prix (ex: "39.99 €")
+            # Extraction du nombre dans le prix (ex: "39.99 €")
             p_match = re.findall(r"[\d\.,]+", price_str)
             if p_match:
                 p = float(p_match[0].replace(",", "."))
                 total_price += p
-            # Extraction de la durée (ex: "10h", "10", etc.)
+            # Extraction du nombre dans la durée (ex: "10h", "10", "10+")
             t_match = re.findall(r"[\d\.,]+", duration_str)
             if t_match:
                 t = float(t_match[0].replace(",", "."))
                 total_time += int(round(t))
         
-        # Créer le header avec les 3 infos sur une même ligne
-        header = f"Nombre de jeux: {total_games} / Prix total: {total_price:.2f} € / Temps total: {total_time} heures"
+        # Création d'un message "Bundle" stylé
+        bundle_info = (
+            "**✨ Bundle Info ✨**\n"
+            f"**Jeux dans le Bundle :** {total_games}\n"
+            f"**Prix total :** {total_price:.2f} €\n"
+            f"**Temps total :** {total_time} heures"
+        )
         
-        # Récupérer la liste des noms de jeux
+        # Envoyer le message du Bundle
+        await interaction.response.send_message(bundle_info)
+        
+        # Récupérer la liste des jeux
         cursor.execute("SELECT nom FROM games ORDER BY LOWER(nom) ASC")
         games = cursor.fetchall()
         if not games:
-            await interaction.response.send_message("❌ Aucun jeu enregistré.")
+            await interaction.followup.send("❌ Aucun jeu enregistré.")
             return
         
         game_names = [game[0].capitalize() for game in games]
+        # Pagination par groupe de 15 jeux
         pages = [game_names[i:i+15] for i in range(0, len(game_names), 15)]
         embeds = []
         for idx, page in enumerate(pages, start=1):
             embed = discord.Embed(
-                title=f"Liste des jeux (Page {idx}/{len(pages)})",
+                title=f"🎮 Liste des jeux (Page {idx}/{len(pages)})",
                 color=discord.Color.blue()
             )
-            # Sur la première page, afficher le header suivi de la liste
-            if idx == 1:
-                embed.description = header + "\n" + "\n".join(f"- {name}" for name in page)
-            else:
-                embed.description = "\n".join(f"- {name}" for name in page)
+            embed.description = "\n".join(f"• {name}" for name in page)
             embeds.append(embed)
         
+        # Envoyer le second message contenant la liste
         if len(embeds) == 1:
-            await interaction.response.send_message(embed=embeds[0])
+            await interaction.followup.send(embed=embeds[0])
         else:
             view = PaginationView(embeds)
-            await interaction.response.send_message(embed=embeds[0], view=view)
+            await interaction.followup.send(embed=embeds[0], view=view)
+            
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la récupération des jeux : {str(e)}", ephemeral=True)
