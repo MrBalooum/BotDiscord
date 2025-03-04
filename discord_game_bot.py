@@ -279,25 +279,28 @@ async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: st
 async def ajoutjeux(interaction: discord.Interaction, games: str):
     """
     Ajoute plusieurs jeux à partir d'un bloc de texte.
-    Chaque ligne du texte doit être au format :
-    /ajoutjeu "Nom du jeu" "Date de sortie" "Prix" "Type" "Durée" "Cloud" "Lien yt" "Lien steam"
-    Les lignes vides ou composées uniquement de tirets sont ignorées.
+    Chaque jeu doit être défini par exactement 8 valeurs entre guillemets :
+    "Nom du jeu" "Date de sortie" "Prix" "Type" "Durée" "Cloud" "Lien yt" "Lien steam"
+    Vous pouvez séparer les jeux par des retours à la ligne, des espaces ou des séparateurs.
     """
+    import re
     pattern = r'"(.*?)"'
-    lines = games.splitlines()
+    # Extrait toutes les valeurs entre guillemets dans le bloc
+    matches = re.findall(pattern, games)
+    total = len(matches)
+    if total % 8 != 0:
+        await interaction.response.send_message(
+            f"❌ Erreur : le nombre total de valeurs extraites est {total}, "
+            "ce qui n'est pas un multiple de 8. Veuillez vérifier le format de votre texte.",
+            ephemeral=True
+        )
+        return
+
     added_games = []
     errors = []
-    
-    for line in lines:
-        line = line.strip()
-        # Ignore les lignes vides ou composées uniquement de tirets
-        if not line or set(line) <= set("- "):
-            continue
-        matches = re.findall(pattern, line)
-        if len(matches) != 8:
-            errors.append(f"Ligne incorrecte (attend 8 valeurs, trouvé {len(matches)}) : {line}")
-            continue
-        nom, date_sortie, prix, type_jeu, duree, cloud, lien_yt, lien_steam = matches
+    # Traiter chaque groupe de 8 valeurs comme un jeu
+    for i in range(0, total, 8):
+        nom, date_sortie, prix, type_jeu, duree, cloud, lien_yt, lien_steam = matches[i:i+8]
         try:
             cursor.execute(
                 "INSERT INTO games (nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
@@ -307,7 +310,6 @@ async def ajoutjeux(interaction: discord.Interaction, games: str):
         except Exception as e:
             conn.rollback()
             errors.append(f"Erreur pour '{nom}': {str(e)}")
-    
     try:
         conn.commit()
     except Exception as e:
