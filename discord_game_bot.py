@@ -191,33 +191,21 @@ async def supprdemande(interaction: discord.Interaction, game_name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression de la demande : {str(e)}", ephemeral=True)
 
-@bot.tree.command(name="modifjeu", description="Modifie plusieurs champs d'un jeu (ADMIN)")
+@bot.tree.command(name="modifjeu", description="Modifie un champ d'un jeu (ADMIN)")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
-async def modifjeu(interaction: discord.Interaction, name: str, modifications: str):
-    """
-    Modifie plusieurs propriétés d'un jeu existant.
-    
-    Format pour 'modifications' :
-    champ1: nouvelle_valeur1; champ2: nouvelle_valeur2; ...
-    
-    Exemple :
-    /modifjeu "Halo Infinite" "prix: 39.99 €; type: FPS, Action; duree: 25h"
-    """
+async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str):
+    """Modifie une propriété (ex : prix, type, etc.) d'un jeu existant."""
     try:
         name_clean = name.strip().lower()
-        # On récupère le jeu avec autocomplétion
         cursor.execute("""
-            SELECT nom FROM games 
+            SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link 
+            FROM games 
             WHERE LOWER(nom) LIKE %s
         """, (f"%{name_clean}%",))
         jeu = cursor.fetchone()
         if not jeu:
-            await interaction.response.send_message(
-                f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'.", ephemeral=True
-            )
+            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'.", ephemeral=True)
             return
-
-        # Dictionnaire de correspondance des champs autorisés
         mapping = {
             "nom": "nom",
             "name": "nom",
@@ -230,54 +218,18 @@ async def modifjeu(interaction: discord.Interaction, name: str, modifications: s
             "youtube": "youtube_link",
             "steam": "steam_link"
         }
-        
-        # On découpe la chaîne par point-virgule pour obtenir les paires
-        modifications = modifications.strip()
-        pairs = [pair.strip() for pair in modifications.split(";") if pair.strip()]
-        
-        if not pairs:
-            await interaction.response.send_message("❌ Aucun champ à modifier n'a été fourni.", ephemeral=True)
+        champ_clean = champ.strip().lower()
+        if champ_clean not in mapping:
+            await interaction.response.send_message(
+                f"❌ Le champ '{champ}' n'est pas valide. Champs disponibles : {', '.join(mapping.keys())}",
+                ephemeral=True
+            )
             return
-        
-        updated_fields = []
-        error_messages = []
-        
-        # Pour chaque paire, on sépare par le premier deux-points
-        for pair in pairs:
-            if ":" not in pair:
-                error_messages.append(f"Format incorrect pour : '{pair}'. Attendu 'champ: valeur'.")
-                continue
-            field, new_value = pair.split(":", 1)
-            field = field.strip().lower()
-            new_value = new_value.strip()
-            if field not in mapping:
-                error_messages.append(f"Champ '{field}' non reconnu. Champs autorisés : {', '.join(mapping.keys())}.")
-                continue
-            actual_field = mapping[field]
-            try:
-                cursor.execute(
-                    f'UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s',
-                    (new_value, f"%{name_clean}%")
-                )
-                updated_fields.append(f"{field} → {new_value}")
-            except Exception as e:
-                conn.rollback()
-                error_messages.append(f"Erreur pour '{field}': {str(e)}")
-        
-        try:
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            await interaction.response.send_message(f"❌ Erreur lors de la sauvegarde: {str(e)}", ephemeral=True)
-            return
-        
-        response = ""
-        if updated_fields:
-            response += f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : " + "; ".join(updated_fields)
-        if error_messages:
-            response += "\n❌ Erreurs : " + "\n".join(error_messages)
-        await interaction.response.send_message(response)
-        
+        actual_field = mapping[champ_clean]
+        query = f'UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s'
+        cursor.execute(query, (nouvelle_valeur, f"%{name_clean}%"))
+        conn.commit()
+        await interaction.response.send_message(f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : **{champ_clean}** → {nouvelle_valeur}")
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la modification du jeu : {str(e)}", ephemeral=True)
