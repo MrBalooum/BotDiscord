@@ -23,11 +23,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 conn = psycopg2.connect(DATABASE_URL, sslmode="require", client_encoding="UTF8")
 cursor = conn.cursor()
 
-# (Optionnel) Pour être sûr que la table a la bonne structure, vous pouvez supprimer l'ancienne table :
-# cursor.execute("DROP TABLE IF EXISTS games")
-# conn.commit()
-
-# Création de la table "games" avec la colonne "nom" et la date d'ajout
+# Création (ou mise à jour) de la table "games"
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
     id SERIAL PRIMARY KEY,
     nom TEXT UNIQUE,
@@ -37,10 +33,16 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
     duration TEXT,
     cloud_available TEXT,
     youtube_link TEXT,
-    steam_link TEXT,
-    date_ajout TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    steam_link TEXT
 )''')
 conn.commit()
+
+# S'assurer que la colonne "date_ajout" existe (si elle n'existe pas, on l'ajoute)
+try:
+    cursor.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS date_ajout TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    conn.commit()
+except Exception as e:
+    print("Erreur lors de l'ajout de la colonne date_ajout :", e)
 
 # Vérification de la structure de la table pour renommer "name" en "nom" si nécessaire
 try:
@@ -66,7 +68,7 @@ conn.commit()
 @bot.event
 async def on_ready():
     try:
-        await bot.tree.sync()  # 🔥 Synchronisation des commandes slash
+        await bot.tree.sync()  # Synchronisation des commandes slash
         print("✅ Commandes slash synchronisées avec Discord !")
     except Exception as e:
         print(f"❌ Erreur de synchronisation des commandes slash : {e}")
@@ -78,14 +80,14 @@ def save_database():
     print("📂 Base de données sauvegardée avec succès.")
 
 ############################################
-#               COMMANDES SLASH            #
+#         COMMANDES SLASH (avec docstrings)
 ############################################
 
 from discord import app_commands
 
-# /fiche : Affiche la fiche détaillée d'un jeu
 @bot.tree.command(name="fiche", description="Affiche la fiche détaillée d'un jeu")
 async def fiche(interaction: discord.Interaction, game: str):
+    """Affiche la fiche d'un jeu dont le nom est fourni."""
     game_query = game.strip().lower()
     try:
         cursor.execute("""
@@ -130,9 +132,9 @@ async def fiche_autocomplete(interaction: discord.Interaction, current: str):
         conn.rollback()
         return []
 
-# /ask : Demande l'ajout d'un jeu
-@bot.tree.command(name="ask")
+@bot.tree.command(name="ask", description="Demande l'ajout d'un jeu")
 async def ask(interaction: discord.Interaction, game_name: str):
+    """Demande à ajouter un jeu à la base."""
     user_id = interaction.user.id
     username = interaction.user.name
     game_name_clean = game_name.strip().capitalize()
@@ -152,10 +154,10 @@ async def ask(interaction: discord.Interaction, game_name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout de la demande : {str(e)}", ephemeral=True)
 
-# /demandes : Affiche la liste des demandes (ADMIN)
-@bot.tree.command(name="demandes")
+@bot.tree.command(name="demandes", description="Affiche la liste des demandes (ADMIN)")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
 async def demandes(interaction: discord.Interaction):
+    """Affiche la liste des demandes d'ajout de jeu."""
     try:
         cursor.execute("SELECT username, game_name, date FROM game_requests ORDER BY date DESC")
         requests_data = cursor.fetchall()
@@ -170,10 +172,10 @@ async def demandes(interaction: discord.Interaction):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur SQL: {str(e)}", ephemeral=True)
 
-# /supprdemande : Supprime une demande (ADMIN)
-@bot.tree.command(name="supprdemande")
+@bot.tree.command(name="supprdemande", description="Supprime une demande (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def supprdemande(interaction: discord.Interaction, game_name: str):
+    """Supprime une demande d'ajout de jeu."""
     try:
         cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (game_name.lower(),))
         demande = cursor.fetchone()
@@ -187,13 +189,18 @@ async def supprdemande(interaction: discord.Interaction, game_name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression de la demande : {str(e)}", ephemeral=True)
 
-# /modifjeu : Modifie un champ d'un jeu (ADMIN)
-@bot.tree.command(name="modifjeu")
+@bot.tree.command(name="modifjeu", description="Modifie un champ d'un jeu (ADMIN)")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
 async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str):
+    """Modifie une propriété (ex : prix, type, etc.) d'un jeu existant."""
     try:
         name_clean = name.strip().lower()
-        cursor.execute('SELECT * FROM games WHERE LOWER(nom) LIKE %s', (f"%{name_clean}%",))
+        # On sélectionne explicitement les colonnes souhaitées
+        cursor.execute("""
+            SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link 
+            FROM games 
+            WHERE LOWER(nom) LIKE %s
+        """, (f"%{name_clean}%",))
         jeu = cursor.fetchone()
         if not jeu:
             await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'.", ephemeral=True)
@@ -219,15 +226,16 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
         query = f'UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s'
         cursor.execute(query, (nouvelle_valeur, f"%{name_clean}%"))
         conn.commit()
-        await interaction.response.send_message(f"✅ Jeu '{jeu[1].capitalize()}' mis à jour : **{champ_clean}** → {nouvelle_valeur}")
+        # Affichage du nom correct depuis la colonne "nom"
+        await interaction.response.send_message(f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : **{champ_clean}** → {nouvelle_valeur}")
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la modification du jeu : {str(e)}", ephemeral=True)
 
-# /ajoutjeu : Ajoute un jeu et envoie la fiche dans le salon "général" (ADMIN)
-@bot.tree.command(name="ajoutjeu")
+@bot.tree.command(name="ajoutjeu", description="Ajoute un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
+    """Ajoute un nouveau jeu et envoie la fiche dans le salon 'général'."""
     try:
         cursor.execute(
             "INSERT INTO games (nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
@@ -237,8 +245,9 @@ async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: st
         cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
         conn.commit()
         cursor.execute("""
-            SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link
-            FROM games WHERE LOWER(nom) = %s
+            SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link 
+            FROM games 
+            WHERE LOWER(nom) = %s
         """, (name.lower(),))
         game_info = cursor.fetchone()
         embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
@@ -255,14 +264,34 @@ async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: st
             await general_channel.send(f"📣 **{name.capitalize()}** vient d'être ajouté !", embed=embed)
     except psycopg2.IntegrityError:
         conn.rollback()
-        await interaction.response.send_message(f"❌ Ce jeu existe déjà dans la base de données : **{name}**")
+        await interaction.response.send_message(f"❌ Ce jeu existe déjà dans la base de données : **{name}**", ephemeral=True)
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout du jeu : {str(e)}", ephemeral=True)
 
-# /listejeux : Affiche les jeux enregistrés par pages (15 par page)
-@bot.tree.command(name="listejeux", description="Affiche tous les jeux enregistrés (15 par page)")
+@bot.tree.command(name="supprjeu", description="Supprime un jeu (ADMIN)")
+@commands.has_permissions(administrator=True)
+async def supprjeu_slash(interaction: discord.Interaction, name: str):
+    """Supprime un jeu de la base et envoie une notification dans 'général'."""
+    try:
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) = %s", (name.lower(),))
+        jeu = cursor.fetchone()
+        if jeu:
+            cursor.execute("DELETE FROM games WHERE LOWER(nom) = %s", (name.lower(),))
+            save_database()
+            await interaction.response.send_message(f"🗑️ Jeu '{name.capitalize()}' supprimé avec succès !")
+            general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
+            if general_channel:
+                await general_channel.send(f"📣 **{name.capitalize()}** n'est plus disponible !")
+        else:
+            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name}'.", ephemeral=True)
+    except Exception as e:
+        conn.rollback()
+        await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
+
+@bot.tree.command(name="listejeux", description="Affiche les jeux enregistrés (15 par page)")
 async def listejeux(interaction: discord.Interaction):
+    """Affiche la liste des jeux enregistrés, paginée 15 par page."""
     try:
         cursor.execute("SELECT nom FROM games ORDER BY LOWER(nom) ASC")
         games = cursor.fetchall()
@@ -288,14 +317,16 @@ async def listejeux(interaction: discord.Interaction):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la récupération des jeux : {str(e)}", ephemeral=True)
 
-# /dernier : Affiche les derniers jeux ajoutés (les 10 derniers)
-@bot.tree.command(name="dernier", description="Affiche les derniers jeux ajoutés")
+@bot.tree.command(name="dernier", description="Affiche les 10 derniers jeux ajoutés")
 async def dernier(interaction: discord.Interaction):
+    """Affiche les 10 derniers jeux ajoutés à la base."""
     try:
         cursor.execute("SELECT nom, date_ajout FROM games ORDER BY date_ajout DESC LIMIT 10")
         derniers = cursor.fetchall()
         if derniers:
-            description = "\n".join(f"- **{jeu[0].capitalize()}** ajouté le {jeu[1].strftime('%d/%m/%Y')}" for jeu in derniers)
+            description = "\n".join(
+                f"- **{jeu[0].capitalize()}** ajouté le {jeu[1].strftime('%d/%m/%Y')}" for jeu in derniers
+            )
             embed = discord.Embed(
                 title="🆕 Derniers jeux ajoutés",
                 description=description,
@@ -308,9 +339,9 @@ async def dernier(interaction: discord.Interaction):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la récupération des derniers jeux : {str(e)}", ephemeral=True)
 
-# /proposejeu : Propose un jeu aléatoire avec sa fiche
 @bot.tree.command(name="proposejeu", description="Propose un jeu aléatoire avec sa fiche")
 async def proposejeu(interaction: discord.Interaction):
+    """Propose un jeu aléatoire et affiche sa fiche complète."""
     try:
         cursor.execute("SELECT nom FROM games")
         games = cursor.fetchall()
@@ -339,9 +370,9 @@ async def proposejeu(interaction: discord.Interaction):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la proposition du jeu : {str(e)}", ephemeral=True)
 
-# /proposejeutype : Propose un jeu aléatoire d'un type donné avec sa fiche
 @bot.tree.command(name="proposejeutype", description="Propose un jeu aléatoire d'un type donné avec sa fiche")
 async def proposejeutype(interaction: discord.Interaction, game_type: str):
+    """Propose un jeu aléatoire d'un type précis et affiche sa fiche complète."""
     try:
         game_type = game_type.lower().strip()
         cursor.execute("SELECT nom, type FROM games")
@@ -376,28 +407,32 @@ async def proposejeutype(interaction: discord.Interaction, game_type: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la proposition du jeu par type : {str(e)}", ephemeral=True)
 
-# Nouveau : /supprjeu - Supprime un jeu et notifie dans "général" (ADMIN)
-@bot.tree.command(name="supprjeu", description="Supprime un jeu de la base de données")
-@commands.has_permissions(administrator=True)
-async def supprjeu_slash(interaction: discord.Interaction, name: str):
+@bot.tree.command(name="style", description="Affiche tous les types de jeux disponibles")
+async def style(interaction: discord.Interaction):
+    """Affiche la liste de tous les types de jeux disponibles."""
     try:
-        cursor.execute("SELECT * FROM games WHERE LOWER(nom) = %s", (name.lower(),))
-        jeu = cursor.fetchone()
-        if jeu:
-            cursor.execute("DELETE FROM games WHERE LOWER(nom) = %s", (name.lower(),))
-            save_database()
-            await interaction.response.send_message(f"🗑️ Jeu '{name.capitalize()}' supprimé avec succès !")
-            general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
-            if general_channel:
-                await general_channel.send(f"📣 **{name.capitalize()}** n'est plus disponible !")
+        cursor.execute("SELECT DISTINCT type FROM games")
+        types_found = cursor.fetchall()
+        unique_types = set()
+        for row in types_found:
+            types_list = row[0].lower().split(",")
+            unique_types.update([t.strip().capitalize() for t in types_list])
+        if unique_types:
+            type_list = "\n".join(f"- {t}" for t in sorted(unique_types))
+            embed = discord.Embed(
+                title="🎮 Types de jeux disponibles",
+                description=type_list,
+                color=discord.Color.blue()
+            )
+            await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name}'.", ephemeral=True)
+            await interaction.response.send_message("❌ Aucun type de jeu trouvé dans la base.")
     except Exception as e:
         conn.rollback()
-        await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
+        await interaction.response.send_message(f"❌ Erreur lors de la récupération des types : {str(e)}", ephemeral=True)
 
 ############################################
-#         CLASSE DE PAGINATION             #
+#         CLASSE DE PAGINATION
 ############################################
 
 class PaginationView(discord.ui.View):
@@ -423,14 +458,15 @@ class PaginationView(discord.ui.View):
             await interaction.response.defer()
 
 ############################################
-#         COMMANDES CLASSIQUES             #
+#         COMMANDES CLASSIQUES
 ############################################
 
 @bot.command(aliases=["Supprjeu"])
 @commands.has_permissions(administrator=True)
 async def supprjeu(ctx, name: str):
+    """Supprime un jeu de la base et notifie dans le salon 'général'."""
     try:
-        cursor.execute("SELECT * FROM games WHERE LOWER(nom) = %s", (name.lower(),))
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) = %s", (name.lower(),))
         jeu = cursor.fetchone()
         if jeu:
             cursor.execute("DELETE FROM games WHERE LOWER(nom) = %s", (name.lower(),))
