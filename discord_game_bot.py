@@ -205,6 +205,7 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
             await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'.", ephemeral=True)
             return
         mapping = {
+            "nom": "nom",
             "sortie": "release_date",
             "prix": "price",
             "type": "type",
