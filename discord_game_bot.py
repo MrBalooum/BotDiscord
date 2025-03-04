@@ -167,22 +167,46 @@ async def ask(interaction: discord.Interaction, game_name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout de la demande : {str(e)}", ephemeral=True)
 
-@bot.tree.command(name="supprdemande", description="Supprime une demande (ADMIN)")
+@bot.tree.command(name="supprdemande", description="Supprime une demande ou un problème (ADMIN)")
 @commands.has_permissions(administrator=True)
-async def supprdemande(interaction: discord.Interaction, game_name: str):
-    """Supprime une demande d'ajout de jeu."""
+async def supprdemande(interaction: discord.Interaction, item: str, type: str):
+    """
+    Supprime une demande ou un problème.
+
+    Utilisation :
+    /supprdemande "Nom" "demande"    -> Supprime la demande de jeu correspondant au nom fourni.
+    /supprdemande "Nom" "probleme"   -> Supprime le problème signalé pour le jeu correspondant.
+    
+    Le paramètre 'item' correspond au nom du jeu.
+    Le paramètre 'type' doit être "demande" ou "probleme".
+    """
+    type_clean = type.strip().lower()
+    if type_clean not in ["demande", "probleme"]:
+        await interaction.response.send_message("❌ Type invalide. Veuillez utiliser 'demande' ou 'probleme'.", ephemeral=True)
+        return
+
     try:
-        cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (game_name.lower(),))
-        demande = cursor.fetchone()
-        if demande:
-            cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (game_name.lower(),))
-            conn.commit()
-            await interaction.response.send_message(f"🗑️ La demande pour **{game_name.capitalize()}** a été supprimée.")
-        else:
-            await interaction.response.send_message(f"❌ Aucun jeu trouvé dans la liste des demandes sous le nom '{game_name}'.")
+        if type_clean == "demande":
+            cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (item.lower(),))
+            entry = cursor.fetchone()
+            if entry:
+                cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (item.lower(),))
+                conn.commit()
+                await interaction.response.send_message(f"🗑️ Demande pour **{item.capitalize()}** supprimée avec succès.")
+            else:
+                await interaction.response.send_message(f"❌ Aucune demande trouvée pour '{item}'.", ephemeral=True)
+        else:  # type_clean == "probleme"
+            cursor.execute("SELECT * FROM game_problems WHERE LOWER(game) = %s", (item.lower(),))
+            entry = cursor.fetchone()
+            if entry:
+                cursor.execute("DELETE FROM game_problems WHERE LOWER(game) = %s", (item.lower(),))
+                conn.commit()
+                await interaction.response.send_message(f"🗑️ Problème pour **{item.capitalize()}** supprimé avec succès.")
+            else:
+                await interaction.response.send_message(f"❌ Aucun problème trouvé pour '{item}'.", ephemeral=True)
     except Exception as e:
         conn.rollback()
-        await interaction.response.send_message(f"❌ Erreur lors de la suppression de la demande : {str(e)}", ephemeral=True)
+        await interaction.response.send_message(f"❌ Erreur lors de la suppression : {str(e)}", ephemeral=True)
 
 @bot.tree.command(name="modifjeu", description="Modifie un champ d'un jeu (ADMIN)")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
