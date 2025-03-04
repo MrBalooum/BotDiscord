@@ -23,11 +23,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 conn = psycopg2.connect(DATABASE_URL, sslmode="require", client_encoding="UTF8")
 cursor = conn.cursor()
 
-# Pour être sûr que la table a la bonne structure, vous pouvez (en développement) supprimer l'ancienne table :
-# cursor.execute("DROP TABLE IF EXISTS games")
-# conn.commit()
-
-# Création de la table "games" avec la colonne "nom" et la date d'ajout
+# Création (ou mise à jour) de la table "games"
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
     id SERIAL PRIMARY KEY,
     nom TEXT UNIQUE,
@@ -41,6 +37,17 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
     date_ajout TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )''')
 conn.commit()
+
+# Vérification de la structure de la table pour renommer "name" en "nom" si nécessaire
+try:
+    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='games'")
+    columns = [row[0] for row in cursor.fetchall()]
+    if 'name' in columns and 'nom' not in columns:
+        cursor.execute("ALTER TABLE games RENAME COLUMN name TO nom")
+        conn.commit()
+        print("Colonne 'name' renommée en 'nom'")
+except Exception as e:
+    print("Erreur lors de la vérification de la structure de la table games:", e)
 
 # Création de la table "game_requests" pour la commande /ask
 cursor.execute('''CREATE TABLE IF NOT EXISTS game_requests (
@@ -62,7 +69,7 @@ async def on_ready():
     print(f"🤖 Bot connecté en tant que {bot.user}")
 
 def save_database():
-    """ Sauvegarde immédiate des changements dans PostgreSQL. """
+    """Sauvegarde immédiate des changements dans PostgreSQL."""
     conn.commit()
     print("📂 Base de données sauvegardée avec succès.")
 
@@ -125,19 +132,15 @@ async def ask(interaction: discord.Interaction, game_name: str):
     user_id = interaction.user.id
     username = interaction.user.name
     game_name_clean = game_name.strip().capitalize()
-
     try:
         cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (game_name_clean.lower(),))
         existing = cursor.fetchone()
         if existing:
             await interaction.response.send_message(f"❌ **{game_name_clean}** est déjà dans la liste des demandes.", ephemeral=True)
             return
-
         cursor.execute("INSERT INTO game_requests (user_id, username, game_name) VALUES (%s, %s, %s)", (user_id, username, game_name_clean))
         conn.commit()
-
         await interaction.response.send_message(f"📩 **{game_name_clean}** a été ajouté à la liste des demandes par {username} !")
-        
         general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
         if general_channel:
             await general_channel.send(f"📣 Le jeu **{game_name_clean}** a été demandé par **{username}**.")
@@ -191,7 +194,6 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
         if not jeu:
             await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'.", ephemeral=True)
             return
-
         mapping = {
             "sortie": "release_date",
             "prix": "price",
@@ -209,12 +211,10 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
                 ephemeral=True
             )
             return
-
         actual_field = mapping[champ_clean]
         query = f'UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s'
         cursor.execute(query, (nouvelle_valeur, f"%{name_clean}%"))
         conn.commit()
-
         await interaction.response.send_message(f"✅ Jeu '{jeu[1].capitalize()}' mis à jour : **{champ_clean}** → {nouvelle_valeur}")
     except Exception as e:
         conn.rollback()
@@ -230,10 +230,8 @@ async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: st
             (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link)
         )
         save_database()
-
         cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
         conn.commit()
-
         cursor.execute("""
             SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link
             FROM games WHERE LOWER(nom) = %s
@@ -247,9 +245,7 @@ async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: st
         embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
         embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
         embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
-        
         await interaction.response.send_message(f"✅ **{name.capitalize()}** ajouté avec succès et retiré des demandes !")
-        
         general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
         if general_channel:
             await general_channel.send(f"📣 **{name.capitalize()}** vient d'être ajouté !", embed=embed)
@@ -269,7 +265,6 @@ async def listejeux(interaction: discord.Interaction):
         if not games:
             await interaction.response.send_message("❌ Aucun jeu enregistré.")
             return
-
         game_names = [game[0].capitalize() for game in games]
         pages = [game_names[i:i+15] for i in range(0, len(game_names), 15)]
         embeds = []
@@ -280,7 +275,6 @@ async def listejeux(interaction: discord.Interaction):
             )
             embed.description = "\n".join(f"- {name}" for name in page)
             embeds.append(embed)
-
         if len(embeds) == 1:
             await interaction.response.send_message(embed=embeds[0])
         else:
