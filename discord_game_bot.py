@@ -511,16 +511,20 @@ async def ajoutjeux(interaction: discord.Interaction, games: str):
     # Envoie un message récapitulatif dans le canal "privé" de l'interaction
     # (celui qui a tapé la commande verra ce message)
     await interaction.followup.send(response, ephemeral=True)
-
+    
 @bot.tree.command(name="supprjeu", description="Supprime un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
-async def supprjeu_slash(interaction: discord.Interaction, name: str):
-    """Supprime un jeu de la base et envoie une notification dans 'général'."""
+async def supprjeu(interaction: discord.Interaction, name: str):
+    """
+    Supprime un jeu de la base de données.
+    Utilisation : /supprjeu "Nom du jeu"
+    """
     try:
-        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) = %s", (name.lower(),))
+        name_clean = name.strip().lower()
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{name_clean}%",))
         jeu = cursor.fetchone()
         if jeu:
-            cursor.execute("DELETE FROM games WHERE LOWER(nom) = %s", (name.lower(),))
+            cursor.execute("DELETE FROM games WHERE LOWER(nom) = %s", (name_clean,))
             save_database()
             await interaction.response.send_message(f"🗑️ Jeu '{name.capitalize()}' supprimé avec succès !")
             general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
@@ -532,9 +536,18 @@ async def supprjeu_slash(interaction: discord.Interaction, name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
 
-############################################
-# Commande /listejeux mise à jour
-############################################
+@supprjeu.autocomplete("name")
+async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
+    """Propose les noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
+    current_lower = current.strip().lower()
+    try:
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
+        results = cursor.fetchall()
+        suggestions = [row[0] for row in results]
+        return [app_commands.Choice(name=s.capitalize(), value=s) for s in suggestions]
+    except Exception as e:
+        conn.rollback()
+        return []
 
 @bot.tree.command(name="listejeux", description="Affiche infos Bundle et liste des jeux (15 par page)")
 async def listejeux(interaction: discord.Interaction):
