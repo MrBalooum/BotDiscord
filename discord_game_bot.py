@@ -395,6 +395,85 @@ async def listejeux(interaction: discord.Interaction):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la récupération des jeux : {str(e)}", ephemeral=True)
 
+############################################
+# Nouvelle commande publique: /probleme
+############################################
+
+@bot.tree.command(name="probleme", description="Signale un problème pour un jeu")
+async def probleme(interaction: discord.Interaction, game: str, message: str):
+    """
+    Signale un problème pour un jeu.
+    
+    Utilisation : /probleme "Nom du jeu" "Votre message"
+    """
+    try:
+        game_clean = game.strip().lower()
+        # Vérifier que le jeu existe dans la table games
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{game_clean}%",))
+        jeu = cursor.fetchone()
+        if not jeu:
+            await interaction.response.send_message(f"❌ Aucun jeu trouvé correspondant à '{game}'.", ephemeral=True)
+            return
+        # Enregistrer le problème dans la table game_problems
+        cursor.execute(
+            "INSERT INTO game_problems (user_id, username, game, message) VALUES (%s, %s, %s, %s)",
+            (interaction.user.id, interaction.user.name, jeu[0], message)
+        )
+        conn.commit()
+        await interaction.response.send_message(f"✅ Problème signalé pour '{jeu[0].capitalize()}' avec le message : {message}")
+    except Exception as e:
+        conn.rollback()
+        await interaction.response.send_message(f"❌ Erreur lors de la signalisation du problème : {str(e)}", ephemeral=True)
+
+@probleme.autocomplete("game")
+async def probleme_autocomplete(interaction: discord.Interaction, current: str):
+    """Propose des noms de jeux présents dans la bibliothèque pour le paramètre 'game'."""
+    current_lower = current.strip().lower()
+    try:
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
+        results = cursor.fetchall()
+        suggestions = [row[0].capitalize() for row in results]
+        return [app_commands.Choice(name=s, value=s) for s in suggestions]
+    except Exception as e:
+        conn.rollback()
+        return []
+
+############################################
+# Modification de /demandes pour afficher 2 messages
+############################################
+
+@bot.tree.command(name="demandes", description="Affiche les demandes et problèmes (ADMIN)")
+@app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
+async def demandes(interaction: discord.Interaction):
+    """
+    Affiche deux messages distincts :
+      1) Demandes de jeux (table game_requests)
+      2) Problèmes signalés (table game_problems)
+    """
+    try:
+        # Récupérer les demandes de jeux
+        cursor.execute("SELECT username, game_name, date FROM game_requests ORDER BY date DESC")
+        requests_data = cursor.fetchall()
+        if requests_data:
+            demandes_msg = "\n".join(f"- **{r[1]}** (demandé par {r[0]} le {r[2].strftime('%d/%m %H:%M')})" for r in requests_data)
+        else:
+            demandes_msg = "Aucune demande de jeu."
+        
+        # Récupérer les problèmes signalés
+        cursor.execute("SELECT username, game, message, date FROM game_problems ORDER BY date DESC")
+        problems_data = cursor.fetchall()
+        if problems_data:
+            problemes_msg = "\n".join(f"- **{r[1]}** (signalé par {r[0]} le {r[3].strftime('%d/%m %H:%M')}) : {r[2]}" for r in problems_data)
+        else:
+            problemes_msg = "Aucun problème signalé."
+        
+        # Envoyer deux messages séparés
+        await interaction.response.send_message("**Demandes de jeux :**\n" + demandes_msg)
+        await interaction.followup.send("**Problèmes signalés :**\n" + problemes_msg)
+    except Exception as e:
+        conn.rollback()
+        await interaction.response.send_message(f"❌ Erreur lors de la récupération des demandes : {str(e)}", ephemeral=True)
+
 @bot.tree.command(name="dernier", description="Affiche les 10 derniers jeux ajoutés")
 async def dernier(interaction: discord.Interaction):
     """Affiche les 10 derniers jeux ajoutés à la base."""
