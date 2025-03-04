@@ -389,36 +389,34 @@ async def supprjeu_slash(interaction: discord.Interaction, name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
 
-@bot.tree.command(name="listejeux", description="Affiche les jeux enregistrés (15 par page) avec infos du Bundle")
+@bot.tree.command(name="listejeux", description="Affiche les jeux et infos du Bundle (15 par page)")
 async def listejeux(interaction: discord.Interaction):
-    """Affiche la liste des jeux enregistrés, paginée 15 par page, avec les infos du Bundle en haut."""
+    """Affiche la liste des jeux avec les infos du Bundle sur une seule ligne."""
     try:
-        # Récupérer les informations pour le Bundle (price et duration)
+        # Récupérer les infos pour le Bundle : on utilise les colonnes "price" et "duration"
         cursor.execute("SELECT price, duration FROM games")
         data = cursor.fetchall()
         total_games = len(data)
         total_price = 0.0
-        total_time = 0.0
+        total_time = 0
         import re
         for row in data:
             price_str, duration_str = row
-            # Extraction du nombre dans le price (ex. "39.99 €")
+            # Extraction du prix (ex: "39.99 €")
             p_match = re.findall(r"[\d\.,]+", price_str)
             if p_match:
-                p = float(p_match[0].replace(',', '.'))
+                p = float(p_match[0].replace(",", "."))
                 total_price += p
-            # Extraction du nombre dans la duration (ex. "10h" ou "10h+")
+            # Extraction de la durée (ex: "10h", "10", etc.)
             t_match = re.findall(r"[\d\.,]+", duration_str)
             if t_match:
-                t = float(t_match[0].replace(',', '.'))
-                total_time += t
+                t = float(t_match[0].replace(",", "."))
+                total_time += int(round(t))
         
-        header = (
-            f"**Bundle**: **Nombre de jeux dans le Bundle** : {total_games} / "
-            f"**Prix du bundle** : {total_price:.2f} € / **Temps de jeu du Bundle** : {total_time:.1f} h\n\n"
-        )
+        # Créer le header avec les 3 infos sur une même ligne
+        header = f"Nombre de jeux: {total_games} / Prix total: {total_price:.2f} € / Temps total: {total_time} heures"
         
-        # Récupérer les noms des jeux pour la liste
+        # Récupérer la liste des noms de jeux
         cursor.execute("SELECT nom FROM games ORDER BY LOWER(nom) ASC")
         games = cursor.fetchall()
         if not games:
@@ -430,11 +428,12 @@ async def listejeux(interaction: discord.Interaction):
         embeds = []
         for idx, page in enumerate(pages, start=1):
             embed = discord.Embed(
-                title=f"🎮 Liste des jeux enregistrés (Page {idx}/{len(pages)})",
+                title=f"Liste des jeux (Page {idx}/{len(pages)})",
                 color=discord.Color.blue()
             )
+            # Sur la première page, afficher le header suivi de la liste
             if idx == 1:
-                embed.description = header + "\n".join(f"- {name}" for name in page)
+                embed.description = header + "\n" + "\n".join(f"- {name}" for name in page)
             else:
                 embed.description = "\n".join(f"- {name}" for name in page)
             embeds.append(embed)
