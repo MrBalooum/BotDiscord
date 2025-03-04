@@ -195,26 +195,21 @@ async def supprdemande(interaction: discord.Interaction, game_name: str):
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
 async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str):
     """
-    Modifie une propriété d'un jeu existant.
+    Modifie un seul champ d'un jeu existant.
     
-    Format d'utilisation :
-    /modifjeu "Nom du jeu" "Champ" "Nouvelle valeur"
-    
-    Exemple :
-    /modifjeu "Halo Infinite" "prix" "39.99 €"
+    Utilisation : /modifjeu "Nom du jeu" "Champ" "Nouvelle valeur"
+    Exemple : /modifjeu "Halo Infinite" "prix" "39.99 €"
     """
     try:
+        # Préparation du nom pour la recherche (en minuscules)
         name_clean = name.strip().lower()
-        cursor.execute("""
-            SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link 
-            FROM games 
-            WHERE LOWER(nom) LIKE %s
-        """, (f"%{name_clean}%",))
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{name_clean}%",))
         jeu = cursor.fetchone()
         if not jeu:
-            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name.capitalize()}'.", ephemeral=True)
+            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name}'.", ephemeral=True)
             return
 
+        # Dictionnaire de correspondance pour les champs autorisés
         mapping = {
             "nom": "nom",
             "name": "nom",
@@ -234,11 +229,15 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
                 ephemeral=True
             )
             return
+
+        # Mise à jour du champ dans la base de données
         actual_field = mapping[champ_clean]
-        query = f'UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s'
+        query = f"UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s"
         cursor.execute(query, (nouvelle_valeur, f"%{name_clean}%"))
         conn.commit()
-        await interaction.response.send_message(f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : {champ_clean} → {nouvelle_valeur}")
+        await interaction.response.send_message(
+            f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : {champ} → {nouvelle_valeur}"
+        )
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la modification du jeu : {str(e)}", ephemeral=True)
@@ -246,7 +245,7 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
 @modifjeu.autocomplete("name")
 async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
     """Propose des noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
-    current_lower = current.lower().strip()
+    current_lower = current.strip().lower()
     try:
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
         results = cursor.fetchall()
