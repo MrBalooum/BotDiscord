@@ -39,6 +39,15 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS games (
 )''')
 conn.commit()
 
+# Création de la table "user_favorites" (pour les favoris par utilisateur)
+cursor.execute('''CREATE TABLE IF NOT EXISTS user_favorites (
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT,
+    game TEXT,
+    UNIQUE(user_id, game)
+)''')
+conn.commit()
+
 # S'assurer que la colonne "date_ajout" existe (si elle n'existe pas, on l'ajoute)
 try:
     cursor.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS date_ajout TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
