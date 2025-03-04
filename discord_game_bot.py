@@ -856,30 +856,6 @@ class PaginationView(discord.ui.View):
         else:
             await interaction.response.defer()
 
-@bot.tree.command(name="supprjeu", description="Supprime un jeu (ADMIN)")
-@commands.has_permissions(administrator=True)
-async def supprjeu(interaction: discord.Interaction, name: str):
-    """
-    Supprime un jeu de la base de données.
-    Utilisation : /supprjeu "Nom du jeu"
-    """
-    try:
-        name_clean = name.strip().lower()
-        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{name_clean}%",))
-        jeu = cursor.fetchone()
-        if jeu:
-            cursor.execute("DELETE FROM games WHERE LOWER(nom) = %s", (name_clean,))
-            save_database()
-            await interaction.response.send_message(f"🗑️ Jeu '{name.capitalize()}' supprimé avec succès !")
-            general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
-            if general_channel:
-                await general_channel.send(f"📣 **{name.capitalize()}** n'est plus disponible !")
-        else:
-            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name}'.", ephemeral=True)
-    except Exception as e:
-        conn.rollback()
-        await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
-
 @supprjeu.autocomplete("name")
 async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
     """Propose les noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
