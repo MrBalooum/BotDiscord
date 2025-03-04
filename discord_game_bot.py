@@ -391,16 +391,10 @@ async def supprjeu_slash(interaction: discord.Interaction, name: str):
 
 @bot.tree.command(name="listejeux", description="Affiche les infos du Bundle et la liste des jeux (15 par page)")
 async def listejeux(interaction: discord.Interaction):
-    """
-    Envoie d'abord un message avec les infos du Bundle, puis un autre message contenant la liste des jeux.
-    Les informations du Bundle comprennent :
-    • Le nombre de jeux dans la bibliothèque
-    • Le prix total (addition des valeurs de la colonne 'price')
-    • Le temps total de jeu (addition des nombres extraits de la colonne 'duration')
-    """
+    """Envoie d'abord un message avec les infos du Bundle, puis un autre message contenant la liste des jeux."""
     try:
         import re
-        # Récupération des informations pour le Bundle
+        # Récupération des informations pour le Bundle : colonnes "price" et "duration"
         cursor.execute("SELECT price, duration FROM games")
         data = cursor.fetchall()
         total_games = len(data)
@@ -413,22 +407,23 @@ async def listejeux(interaction: discord.Interaction):
             if p_match:
                 p = float(p_match[0].replace(",", "."))
                 total_price += p
-            # Extraction du nombre dans la durée (ex: "10h", "10", "10+")
+            # Extraction du nombre dans la durée (ex: "10h", "10", etc.)
             t_match = re.findall(r"[\d\.,]+", duration_str)
             if t_match:
                 t = float(t_match[0].replace(",", "."))
                 total_time += int(round(t))
         
-        # Création d'un message "Bundle" stylé
-        bundle_info = (
+        # Création d'un header stylé avec des emojis et le texte mis à jour
+        header = (
             "**✨ Bundle Info ✨**\n"
-            f"**Jeux dans le Bundle :** {total_games}\n"
-            f"**Prix total :** {total_price:.2f} €\n"
-            f"**Temps total :** {total_time} heures"
+            f"**🎮 Jeux dans le Bundle :** {total_games}  |  "
+            f"**💶 Prix total :** {total_price:.2f} €  |  "
+            f"**⏳ Temps total de jeu :** {total_time} heures\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         )
         
         # Envoyer le message du Bundle
-        await interaction.response.send_message(bundle_info)
+        await interaction.response.send_message(header)
         
         # Récupérer la liste des jeux
         cursor.execute("SELECT nom FROM games ORDER BY LOWER(nom) ASC")
@@ -437,8 +432,8 @@ async def listejeux(interaction: discord.Interaction):
             await interaction.followup.send("❌ Aucun jeu enregistré.")
             return
         
-        game_names = [game[0].capitalize() for game in games]
-        # Pagination par groupe de 15 jeux
+        # Nettoyage des noms pour supprimer d'éventuels marqueurs de spoiler (||)
+        game_names = [game[0].replace("||", "").strip().capitalize() for game in games]
         pages = [game_names[i:i+15] for i in range(0, len(game_names), 15)]
         embeds = []
         for idx, page in enumerate(pages, start=1):
@@ -449,13 +444,11 @@ async def listejeux(interaction: discord.Interaction):
             embed.description = "\n".join(f"• {name}" for name in page)
             embeds.append(embed)
         
-        # Envoyer le second message contenant la liste
         if len(embeds) == 1:
             await interaction.followup.send(embed=embeds[0])
         else:
             view = PaginationView(embeds)
             await interaction.followup.send(embed=embeds[0], view=view)
-            
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la récupération des jeux : {str(e)}", ephemeral=True)
