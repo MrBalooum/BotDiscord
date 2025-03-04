@@ -318,16 +318,21 @@ async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: st
 # NOUVELLE COMMANDE POUR AJOUTER PLUSIEURS JEUX
 ############################################
 
+import asyncio
+import re
+
 @bot.tree.command(name="ajoutjeux", description="Ajoute plusieurs jeux à la fois (ADMIN)")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
 async def ajoutjeux(interaction: discord.Interaction, games: str):
     """
     Ajoute plusieurs jeux à partir d'un bloc de texte.
     Chaque jeu doit être défini par exactement 8 valeurs entre guillemets :
-    "Nom du jeu" "Date de sortie" "Prix" "Type" "Durée" "Cloud" "Lien yt" "Lien steam"
-    Vous pouvez séparer les jeux par des retours à la ligne, des espaces ou des séparateurs.
+    "Nom" "Date de sortie" "Prix" "Type" "Durée" "Cloud" "Lien YouTube" "Lien Steam"
+
+    Exemple de bloc :
+    /ajoutjeu "High on Life" "13 décembre 2022" "36.99" "FPS, Aventure" "10h" "Non" "https://..." "https://..."
+    /ajoutjeu "Planet Of Lana" "23 mai 2023" "19,99 €" "2D, Chill, Histoire" "5h" "Non" "https://..." "https://..."
     """
-    import re
     pattern = r'"(.*?)"'
     # Extrait toutes les valeurs entre guillemets dans le bloc
     matches = re.findall(pattern, games)
@@ -335,14 +340,19 @@ async def ajoutjeux(interaction: discord.Interaction, games: str):
     if total % 8 != 0:
         await interaction.response.send_message(
             f"❌ Erreur : le nombre total de valeurs extraites est {total}, "
-            "ce qui n'est pas un multiple de 8. Veuillez vérifier le format de votre texte.",
+            "et ce n'est pas un multiple de 8. Vérifiez le format.",
             ephemeral=True
         )
         return
 
     added_games = []
     errors = []
-    # Traiter chaque groupe de 8 valeurs comme un jeu
+    
+    # On répond d'abord au slash command pour éviter le "Interaction Failed"
+    await interaction.response.send_message("⏳ Traitement en cours...", ephemeral=True)
+    
+    general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
+    
     for i in range(0, total, 8):
         nom, date_sortie, prix, type_jeu, duree, cloud, lien_yt, lien_steam = matches[i:i+8]
         try:
@@ -350,24 +360,42 @@ async def ajoutjeux(interaction: discord.Interaction, games: str):
                 "INSERT INTO games (nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                 (nom.lower(), date_sortie, prix, type_jeu.lower(), duree, cloud, lien_yt, lien_steam)
             )
+            conn.commit()
             added_games.append(nom)
+
+            # Si on a trouvé le salon "général", on y envoie la fiche du jeu
+            if general_channel:
+                embed = discord.Embed(title=f"🎮 {nom.capitalize()}", color=discord.Color.blue())
+                embed.add_field(name="📅 Date de sortie", value=date_sortie, inline=False)
+                embed.add_field(name="💰 Prix", value=prix, inline=False)
+                embed.add_field(name="🎮 Type", value=type_jeu.capitalize(), inline=False)
+                embed.add_field(name="⏳ Durée", value=duree, inline=False)
+                embed.add_field(name="☁️ Cloud disponible", value=cloud, inline=False)
+                embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({lien_yt})", inline=False)
+                if lien_steam.strip():
+                    embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({lien_steam})", inline=False)
+                
+                await general_channel.send(f"📣 **{nom.capitalize()}** vient d'être ajouté !", embed=embed)
+                # Attendre 3 secondes avant d'envoyer le prochain
+                await asyncio.sleep(3)
+
         except Exception as e:
             conn.rollback()
             errors.append(f"Erreur pour '{nom}': {str(e)}")
-    try:
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        await interaction.response.send_message(f"❌ Erreur lors de la sauvegarde: {str(e)}", ephemeral=True)
-        return
 
+    # Récapitulatif final
     response = ""
     if added_games:
         response += f"✅ Jeux ajoutés : {', '.join(added_games)}\n"
     if errors:
         response += "❌ Erreurs :\n" + "\n".join(errors)
     
-    await interaction.response.send_message(response)
+    if not response.strip():
+        response = "Aucun jeu ajouté et aucune erreur détectée."
+    
+    # Envoie un message récapitulatif dans le canal "privé" de l'interaction
+    # (celui qui a tapé la commande verra ce message)
+    await interaction.followup.send(response, ephemeral=True)
 
 @bot.tree.command(name="supprjeu", description="Supprime un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
