@@ -277,6 +277,84 @@ async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
         conn.rollback()
         return []
 
+############################################
+# Nouvelles commandes pour les favoris
+############################################
+
+@bot.tree.command(name="fav", description="Ajoute un jeu aux favoris")
+async def fav(interaction: discord.Interaction, name: str):
+    """
+    Ajoute un jeu aux favoris de l'utilisateur.
+    
+    Utilisation : /fav "Nom du jeu"
+    """
+    try:
+        name_clean = name.strip().lower()
+        # Vérifier que le jeu existe
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{name_clean}%",))
+        jeu = cursor.fetchone()
+        if not jeu:
+            await interaction.response.send_message(f"❌ Aucun jeu trouvé correspondant à '{name}'.", ephemeral=True)
+            return
+        # Ajouter dans la table user_favorites
+        try:
+            cursor.execute(
+                "INSERT INTO user_favorites (user_id, game) VALUES (%s, %s)",
+                (interaction.user.id, jeu[0])
+            )
+            conn.commit()
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            await interaction.response.send_message(f"❌ Le jeu **{jeu[0].capitalize()}** est déjà dans vos favoris.", ephemeral=True)
+            return
+        # Envoi d'un message dans le salon de la commande
+        await interaction.response.send_message(f"✅ **{jeu[0].capitalize()}** a été ajouté à vos favoris !")
+        # Optionnel : envoyer un message de confirmation dans le salon public du serveur
+        public_channel = interaction.channel
+        await public_channel.send(f"📌 {interaction.user.name} a ajouté **{jeu[0].capitalize()}** à ses favoris.")
+    except Exception as e:
+        conn.rollback()
+        await interaction.response.send_message(f"❌ Erreur lors de l'ajout aux favoris : {str(e)}", ephemeral=True)
+
+@bot.tree.command(name="favoris", description="Affiche votre liste de favoris")
+async def favoris(interaction: discord.Interaction):
+    """
+    Affiche la liste des jeux favoris de l'utilisateur.
+    """
+    try:
+        cursor.execute("SELECT game FROM user_favorites WHERE user_id = %s ORDER BY game ASC", (interaction.user.id,))
+        favs = cursor.fetchall()
+        if not favs:
+            await interaction.response.send_message("❌ Vous n'avez aucun jeu favori.", ephemeral=True)
+            return
+        fav_list = "\n".join(f"• {row[0].capitalize()}" for row in favs)
+        embed = discord.Embed(title="🌟 Vos favoris", description=fav_list, color=discord.Color.gold())
+        await interaction.response.send_message(embed=embed)
+    except Exception as e:
+        conn.rollback()
+        await interaction.response.send_message(f"❌ Erreur lors de la récupération des favoris : {str(e)}", ephemeral=True)
+
+@bot.tree.command(name="unfav", description="Retire un jeu de vos favoris")
+async def unfav(interaction: discord.Interaction, name: str):
+    """
+    Retire un jeu de vos favoris.
+    
+    Utilisation : /unfav "Nom du jeu"
+    """
+    try:
+        name_clean = name.strip().lower()
+        cursor.execute("SELECT game FROM user_favorites WHERE user_id = %s AND LOWER(game) = %s", (interaction.user.id, name_clean))
+        fav = cursor.fetchone()
+        if not fav:
+            await interaction.response.send_message(f"❌ Le jeu **{name}** n'est pas dans vos favoris.", ephemeral=True)
+            return
+        cursor.execute("DELETE FROM user_favorites WHERE user_id = %s AND LOWER(game) = %s", (interaction.user.id, name_clean))
+        conn.commit()
+        await interaction.response.send_message(f"✅ **{name.capitalize()}** a été retiré de vos favoris.")
+    except Exception as e:
+        conn.rollback()
+        await interaction.response.send_message(f"❌ Erreur lors de la suppression des favoris : {str(e)}", ephemeral=True)
+
 @bot.tree.command(name="ajoutjeu", description="Ajoute un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
@@ -417,12 +495,15 @@ async def supprjeu_slash(interaction: discord.Interaction, name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
 
-@bot.tree.command(name="listejeux", description="Affiche les infos du Bundle et la liste des jeux (15 par page)")
+############################################
+# Commande /listejeux mise à jour
+############################################
+
+@bot.tree.command(name="listejeux", description="Affiche infos Bundle et liste des jeux (15 par page)")
 async def listejeux(interaction: discord.Interaction):
-    """Envoie deux messages : l'un avec les infos du bundle, l'autre avec la liste des jeux."""
+    """Envoie 2 messages : le premier avec les infos du bundle, le second avec la liste paginée des jeux."""
     try:
-        import re
-        # Récupérer les infos pour le Bundle : colonnes "price" et "duration"
+        # Récupérer les infos du Bundle
         cursor.execute("SELECT price, duration FROM games")
         data = cursor.fetchall()
         total_games = len(data)
@@ -430,25 +511,21 @@ async def listejeux(interaction: discord.Interaction):
         total_time = 0
         for row in data:
             price_str, duration_str = row
-            # Extraction du nombre dans le prix (ex: "39.99 €")
             p_match = re.findall(r"[\d\.,]+", price_str)
             if p_match:
                 p = float(p_match[0].replace(",", "."))
                 total_price += p
-            # Extraction du nombre dans la durée (ex: "10h", "10", etc.)
             t_match = re.findall(r"[\d\.,]+", duration_str)
             if t_match:
                 t = float(t_match[0].replace(",", "."))
                 total_time += int(round(t))
         
-        # Création d'un header avec chaque info sur une ligne
+        # Création du header avec chaque info sur une ligne
         bundle_info = (
             "**🎮 Jeux dans le Bundle :** " + str(total_games) + "\n" +
             "**💶 Prix total :** " + f"{total_price:.2f} €" + "\n" +
             "**⏳ Temps total de jeu :** " + str(total_time) + " heures"
         )
-        
-        # Envoyer le premier message avec les infos du Bundle
         await interaction.response.send_message(bundle_info)
         
         # Récupérer la liste des jeux
@@ -457,8 +534,6 @@ async def listejeux(interaction: discord.Interaction):
         if not games:
             await interaction.followup.send("❌ Aucun jeu enregistré.")
             return
-        
-        # Nettoyer les noms pour supprimer d'éventuels marqueurs de spoiler et capitaliser
         game_names = [game[0].replace("||", "").strip().capitalize() for game in games]
         pages = [game_names[i:i+15] for i in range(0, len(game_names), 15)]
         embeds = []
@@ -470,17 +545,15 @@ async def listejeux(interaction: discord.Interaction):
             embed.description = "\n".join(f"• {name}" for name in page)
             embeds.append(embed)
         
-        # Envoyer le second message avec la liste des jeux
         if len(embeds) == 1:
             await interaction.followup.send(embed=embeds[0])
         else:
             view = PaginationView(embeds)
             await interaction.followup.send(embed=embeds[0], view=view)
-            
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la récupération des jeux : {str(e)}", ephemeral=True)
-
+        
 ############################################
 # Nouvelle commande publique: /probleme
 ############################################
