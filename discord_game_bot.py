@@ -80,7 +80,7 @@ def save_database():
     print("📂 Base de données sauvegardée avec succès.")
 
 ############################################
-#         COMMANDES SLASH (avec docstrings)
+#         COMMANDES SLASH
 ############################################
 
 from discord import app_commands
@@ -195,7 +195,6 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
     """Modifie une propriété (ex : prix, type, etc.) d'un jeu existant."""
     try:
         name_clean = name.strip().lower()
-        # On sélectionne explicitement les colonnes souhaitées
         cursor.execute("""
             SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link 
             FROM games 
@@ -226,7 +225,6 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
         query = f'UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s'
         cursor.execute(query, (nouvelle_valeur, f"%{name_clean}%"))
         conn.commit()
-        # Affichage du nom correct depuis la colonne "nom"
         await interaction.response.send_message(f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : **{champ_clean}** → {nouvelle_valeur}")
     except Exception as e:
         conn.rollback()
@@ -415,8 +413,10 @@ async def style(interaction: discord.Interaction):
         types_found = cursor.fetchall()
         unique_types = set()
         for row in types_found:
-            types_list = row[0].lower().split(",")
-            unique_types.update([t.strip().capitalize() for t in types_list])
+            for t in row[0].split(","):
+                t_clean = t.strip()
+                if t_clean:
+                    unique_types.add(t_clean.capitalize())
         if unique_types:
             type_list = "\n".join(f"- {t}" for t in sorted(unique_types))
             embed = discord.Embed(
@@ -430,6 +430,50 @@ async def style(interaction: discord.Interaction):
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la récupération des types : {str(e)}", ephemeral=True)
+
+# Nouvelle commande /type : affiche tous les jeux d'un type choisi
+@bot.tree.command(name="type", description="Affiche tous les jeux d'un type choisi")
+async def type_command(interaction: discord.Interaction, game_type: str):
+    """Affiche la liste des jeux correspondant au type choisi."""
+    try:
+        query_type = game_type.lower().strip()
+        cursor.execute("SELECT nom, type FROM games")
+        games_found = cursor.fetchall()
+        matching_games = []
+        for nom, types in games_found:
+            type_list = [t.strip().lower() for t in types.split(",")]
+            if query_type in type_list:
+                matching_games.append(nom.capitalize())
+        if matching_games:
+            embed = discord.Embed(
+                title=f"Jeux du type {query_type.capitalize()}",
+                color=discord.Color.blue()
+            )
+            embed.description = "\n".join(f"- {jeu}" for jeu in matching_games)
+            await interaction.response.send_message(embed=embed)
+        else:
+            await interaction.response.send_message(f"❌ Aucun jeu trouvé pour le type '{query_type.capitalize()}'.", ephemeral=True)
+    except Exception as e:
+        conn.rollback()
+        await interaction.response.send_message(f"❌ Erreur lors de la récupération des jeux pour le type : {str(e)}", ephemeral=True)
+
+@type_command.autocomplete("game_type")
+async def type_autocomplete(interaction: discord.Interaction, current: str):
+    current_lower = current.lower().strip()
+    try:
+        cursor.execute("SELECT DISTINCT type FROM games")
+        types_found = cursor.fetchall()
+        all_types = set()
+        for row in types_found:
+            for t in row[0].split(","):
+                t_clean = t.strip()
+                if t_clean:
+                    all_types.add(t_clean.capitalize())
+        suggestions = sorted([t for t in all_types if current_lower in t.lower()])
+        return [app_commands.Choice(name=s, value=s) for s in suggestions]
+    except Exception as e:
+        conn.rollback()
+        return []
 
 ############################################
 #         CLASSE DE PAGINATION
