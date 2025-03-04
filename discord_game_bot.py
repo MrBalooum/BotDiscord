@@ -4,6 +4,8 @@ import psycopg2
 import asyncio
 import os
 import random
+import re
+from discord import app_commands
 
 # Vérification et installation de requests si manquant
 try:
@@ -267,6 +269,59 @@ async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: st
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout du jeu : {str(e)}", ephemeral=True)
+
+############################################
+# NOUVELLE COMMANDE POUR AJOUTER PLUSIEURS JEUX
+############################################
+
+@bot.tree.command(name="ajoutjeux", description="Ajoute plusieurs jeux à la fois (ADMIN)")
+@app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
+async def ajoutjeux(interaction: discord.Interaction, games: str):
+    """
+    Ajoute plusieurs jeux à partir d'un bloc de texte.
+    Chaque ligne du texte doit être au format :
+    /ajoutjeu "Nom du jeu" "Date de sortie" "Prix" "Type" "Durée" "Cloud" "Lien yt" "Lien steam"
+    Les lignes vides ou composées uniquement de tirets sont ignorées.
+    """
+    pattern = r'"(.*?)"'
+    lines = games.splitlines()
+    added_games = []
+    errors = []
+    
+    for line in lines:
+        line = line.strip()
+        # Ignore les lignes vides ou composées uniquement de tirets
+        if not line or set(line) <= set("- "):
+            continue
+        matches = re.findall(pattern, line)
+        if len(matches) != 8:
+            errors.append(f"Ligne incorrecte (attend 8 valeurs, trouvé {len(matches)}) : {line}")
+            continue
+        nom, date_sortie, prix, type_jeu, duree, cloud, lien_yt, lien_steam = matches
+        try:
+            cursor.execute(
+                "INSERT INTO games (nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (nom.lower(), date_sortie, prix, type_jeu.lower(), duree, cloud, lien_yt, lien_steam)
+            )
+            added_games.append(nom)
+        except Exception as e:
+            conn.rollback()
+            errors.append(f"Erreur pour '{nom}': {str(e)}")
+    
+    try:
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        await interaction.response.send_message(f"❌ Erreur lors de la sauvegarde: {str(e)}", ephemeral=True)
+        return
+
+    response = ""
+    if added_games:
+        response += f"✅ Jeux ajoutés : {', '.join(added_games)}\n"
+    if errors:
+        response += "❌ Erreurs :\n" + "\n".join(errors)
+    
+    await interaction.response.send_message(response)
 
 @bot.tree.command(name="supprjeu", description="Supprime un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
