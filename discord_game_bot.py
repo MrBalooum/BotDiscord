@@ -389,15 +389,39 @@ async def supprjeu_slash(interaction: discord.Interaction, name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
 
-@bot.tree.command(name="listejeux", description="Affiche les jeux enregistrés (15 par page)")
+@bot.tree.command(name="listejeux", description="Affiche les jeux enregistrés (15 par page) avec infos du Bundle")
 async def listejeux(interaction: discord.Interaction):
-    """Affiche la liste des jeux enregistrés, paginée 15 par page."""
+    """Affiche la liste des jeux enregistrés, paginée 15 par page, avec les infos du Bundle en haut."""
     try:
+        # Récupérer les informations pour le Bundle (prix et durée)
+        cursor.execute("SELECT prix, duree FROM games")
+        data = cursor.fetchall()
+        total_games = len(data)
+        total_price = 0.0
+        total_time = 0.0
+        import re
+        for row in data:
+            prix_str, duree_str = row
+            # Extraction du nombre dans le prix (ex. "39.99 €")
+            p_match = re.findall(r"[\d\.,]+", prix_str)
+            if p_match:
+                p = float(p_match[0].replace(',', '.'))
+                total_price += p
+            # Extraction du nombre dans la durée (ex. "10h" ou "10h+")
+            t_match = re.findall(r"[\d\.,]+", duree_str)
+            if t_match:
+                t = float(t_match[0].replace(',', '.'))
+                total_time += t
+        
+        header = f"**Bundle**: **Nombre de jeux dans le Bundle** : {total_games} / **Prix du bundle** : {total_price:.2f} € / **Temps de jeu du Bundle** : {total_time:.1f} h\n\n"
+        
+        # Récupérer les noms des jeux pour la liste
         cursor.execute("SELECT nom FROM games ORDER BY LOWER(nom) ASC")
         games = cursor.fetchall()
         if not games:
             await interaction.response.send_message("❌ Aucun jeu enregistré.")
             return
+        
         game_names = [game[0].capitalize() for game in games]
         pages = [game_names[i:i+15] for i in range(0, len(game_names), 15)]
         embeds = []
@@ -406,8 +430,13 @@ async def listejeux(interaction: discord.Interaction):
                 title=f"🎮 Liste des jeux enregistrés (Page {idx}/{len(pages)})",
                 color=discord.Color.blue()
             )
-            embed.description = "\n".join(f"- {name}" for name in page)
+            # Pour la première page, ajoutez le header
+            if idx == 1:
+                embed.description = header + "\n".join(f"- {name}" for name in page)
+            else:
+                embed.description = "\n".join(f"- {name}" for name in page)
             embeds.append(embed)
+        
         if len(embeds) == 1:
             await interaction.response.send_message(embed=embeds[0])
         else:
