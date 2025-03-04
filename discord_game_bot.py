@@ -208,6 +208,7 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
             return
         mapping = {
             "nom": "nom",
+            "name": "nom",
             "sortie": "release_date",
             "prix": "price",
             "type": "type",
@@ -232,6 +233,19 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la modification du jeu : {str(e)}", ephemeral=True)
+
+@modifjeu.autocomplete("name")
+async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
+    """Propose des noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
+    current_lower = current.lower().strip()
+    try:
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
+        results = cursor.fetchall()
+        suggestions = [row[0].capitalize() for row in results]
+        return [app_commands.Choice(name=s, value=s) for s in suggestions]
+    except Exception as e:
+        conn.rollback()
+        return []
 
 @bot.tree.command(name="ajoutjeu", description="Ajoute un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
