@@ -704,34 +704,33 @@ async def probleme(interaction: discord.Interaction, game: str, message: str, ty
         type_clean = type_probleme.strip().lower()
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{game_clean}%",))
         jeu = cursor.fetchone()
+        
         if not jeu:
             await interaction.response.send_message(f"❌ Aucun jeu trouvé correspondant à '{game}'.", ephemeral=True)
             return
 
+        jeu_nom = jeu[0].capitalize()
+
         if type_clean == "jeu":
             cursor.execute(
                 "INSERT INTO game_problems (user_id, username, game, message) VALUES (%s, %s, %s, %s)",
-                (interaction.user.id, interaction.user.name, jeu[0], message)
+                (interaction.user.id, interaction.user.name, jeu_nom, message)
             )
             conn.commit()
             general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
             if general_channel:
-                await general_channel.send(f"🚨 **{jeu[0].capitalize()}** a un problème ! (Signalisé par {interaction.user.name} à {interaction.created_at.strftime('%d/%m/%Y %H:%M')})")
-            await interaction.response.send_message(f"✅ Problème signalé pour '{jeu[0].capitalize()}' : {message}")
+                await general_channel.send(f"🚨 **{jeu_nom}** a un problème ! (Signalé par {interaction.user.name} à {interaction.created_at.strftime('%d/%m/%Y %H:%M')})")
+            await interaction.response.send_message(f"✅ Problème signalé pour **{jeu_nom}** : {message}")
 
         elif type_clean == "technique":
-            cursor.execute(
-                "INSERT INTO game_problems (user_id, username, game, message) VALUES (%s, %s, %s, %s)",
-                (interaction.user.id, interaction.user.name, "Problème Technique", message)
-            )
-            conn.commit()
             tech_channel = discord.utils.get(interaction.guild.text_channels, name="mrbalooum")
             if tech_channel:
-                await tech_channel.send(f"🔧 **Problème technique signalé !** \n **Utilisateur :** {interaction.user.name} \n **Message :** {message} \n **Date :** {interaction.created_at.strftime('%d/%m/%Y %H:%M')}")
-            await interaction.response.send_message(f"✅ Problème technique signalé.")
-            
+                await tech_channel.send(f"🔧 **{jeu_nom} (Problème technique)**\n**Utilisateur :** {interaction.user.name}\n**Message :** {message}\n**Date :** {interaction.created_at.strftime('%d/%m/%Y %H:%M')}")
+            await interaction.response.send_message(f"✅ Problème technique signalé pour **{jeu_nom}**")
+
         else:
             await interaction.response.send_message("❌ Type de problème invalide. Utilisez 'jeu' ou 'technique'.", ephemeral=True)
+
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la signalisation du problème : {str(e)}", ephemeral=True)
