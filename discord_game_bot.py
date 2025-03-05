@@ -432,10 +432,10 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la modification : {str(e)}", ephemeral=True)
 
-# ✅ Correction de l'Autocomplétion pour "name"
+# ✅ Déplace l’autocomplétion en dehors des restrictions admin
 @modifjeu.autocomplete("name")
 async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
-    """Autocomplétion pour récupérer les noms de jeux."""
+    """Propose des noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
     current_lower = current.strip().lower()
     try:
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
