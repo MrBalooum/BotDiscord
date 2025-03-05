@@ -185,14 +185,24 @@ async def fiche_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
+        
 @bot.event
 async def on_member_join(member):
     guild = member.guild
 
-    # Définir les permissions : seul le membre peut voir et écrire dans le salon
+    # Rechercher (ou créer) le rôle "UserAccess"
+    role = discord.utils.get(guild.roles, name="UserAccess")
+    if role is None:
+        role = await guild.create_role(name="UserAccess")
+    
+    # Attribuer le rôle au nouveau membre
+    await member.add_roles(role)
+
+    # Définir les permissions : seul le membre et le rôle "UserAccess" peuvent voir et écrire dans le salon
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
-        member: discord.PermissionOverwrite(view_channel=True, send_messages=True)
+        member: discord.PermissionOverwrite(view_channel=True, send_messages=True),
+        role: discord.PermissionOverwrite(view_channel=True, send_messages=True)
     }
 
     # Créer le salon textuel portant le nom du membre
@@ -214,6 +224,15 @@ async def on_member_join(member):
 
     # Envoyer le message dans le salon personnel
     await user_channel.send(welcome_message)
+
+@bot.event
+async def on_member_remove(member):
+    guild = member.guild
+    # Chercher le salon personnel du membre par son nom
+    channel = discord.utils.get(guild.text_channels, name=member.name)
+    if channel:
+        await channel.delete(reason=f"Le membre {member.name} a quitté le serveur")
+
 
 @bot.tree.command(name="ask", description="Demande l'ajout d'un jeu")
 async def ask(interaction: discord.Interaction, game_name: str):
