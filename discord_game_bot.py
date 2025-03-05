@@ -643,7 +643,7 @@ GUILD_ID = 1343310341655892028  # ID de ton serveur
     name="ajoutjeux",
     description="Ajoute plusieurs jeux à la fois (ADMIN)",
     guild=Object(id=GUILD_ID)
-
+)
 
 import asyncio
 import re
