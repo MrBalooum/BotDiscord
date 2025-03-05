@@ -185,46 +185,53 @@ async def fiche_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
+import asyncio  # Assure que asyncio est bien importé
+
 @bot.event
 async def on_member_join(member):
     guild = member.guild
 
-    # Créer un rôle UserAccess s'il n'existe pas
+    # 🔹 Vérification du rôle "UserAccess"
     role = discord.utils.get(guild.roles, name="UserAccess")
     if role is None:
         role = await guild.create_role(name="UserAccess")
 
-    # Ajouter le rôle au membre
+    # 🔹 Ajouter le rôle au membre
     await member.add_roles(role)
-
-    # Définir le nom du salon basé sur le pseudo du membre (sans ajout de suffixe)
+    
+    # 🔹 Définition du nom du salon
     channel_name = member.name.lower().replace(" ", "-")
 
-    # Vérifier si un salon avec ce nom existe déjà (évite les erreurs)
+    # 🔹 Vérifier si le salon existe déjà et le supprimer
     existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
     if existing_channel:
-        await existing_channel.delete(reason="Création d'un nouveau salon personnel pour le membre.")
+        await existing_channel.delete(reason="Création d'un nouveau salon personnel.")
 
-    # Définir les permissions : seul le membre et le rôle "UserAccess" peuvent voir et écrire dans le salon
+    # 🔹 Définition des permissions du salon
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
         member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
         role: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True)
     }
 
-    # Créer le salon textuel avec le nom sans suffixe et ajouter l'ID du membre dans le topic pour le retrouver plus tard
+    # 🔹 Création du salon textuel
     user_channel = await guild.create_text_channel(
         name=channel_name,
         overwrites=overwrites,
         topic=f"Salon personnel de {member.name}. ID: {member.id}"
     )
 
-    # Liste des commandes autorisées pour l'utilisateur
+    print(f"✅ Salon créé : {user_channel.name}")  # Log pour voir si le salon est bien créé
+
+    # 🔹 Attendre que Discord enregistre bien le salon avant d'envoyer le message
+    await asyncio.sleep(2)
+
+    # 🔹 Liste des commandes disponibles
     commandes = ("/fiche | /Listejeux | /Dernier | /Style | "
                  "/Proposejeu | /Proposejeutype | /Type | /Ask | "
                  "/Fav | /Favori | /Unfav | /Probleme")
 
-    # Message de bienvenue personnalisé
+    # 🔹 Message de bienvenue
     welcome_message = (
         f"Bienvenue {member.mention} sur ton salon personnel !\n"
         "Voici les commandes dont tu disposes pour profiter pleinement du serveur :\n"
@@ -233,17 +240,24 @@ async def on_member_join(member):
         "Bienvenue et amuse-toi bien !"
     )
 
-    # Envoyer le message dans le salon personnel
-    await user_channel.send(welcome_message)
+    try:
+        await user_channel.send(welcome_message)
+        print(f"✅ Message de bienvenue envoyé à {member.name}")
+    except Exception as e:
+        print(f"❌ Erreur lors de l'envoi du message : {e}")
 
 @bot.event
 async def on_member_remove(member):
     guild = member.guild
 
-    # Parcourir tous les salons textuels du serveur et supprimer celui associé au membre
+    # 🔹 Recherche du salon du membre en parcourant les salons
     for channel in guild.text_channels:
         if channel.topic and f"ID: {member.id}" in channel.topic:
-            await channel.delete(reason=f"Le membre {member.name} a quitté le serveur")
+            try:
+                await channel.delete(reason=f"Le membre {member.name} a quitté le serveur")
+                print(f"🗑️ Salon supprimé : {channel.name}")
+            except Exception as e:
+                print(f"❌ Erreur lors de la suppression du salon : {e}")
 
 @bot.tree.command(name="ask", description="Demande l'ajout d'un jeu")
 async def ask(interaction: discord.Interaction, game_name: str):
