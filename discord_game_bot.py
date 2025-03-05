@@ -205,8 +205,15 @@ async def on_member_join(member):
         role: discord.PermissionOverwrite(view_channel=True, send_messages=True)
     }
 
-    # Créer le salon textuel portant le nom du membre
-    user_channel = await guild.create_text_channel(name=member.name, overwrites=overwrites)
+    # Créer un nom unique pour le salon en utilisant le nom et le discriminateur du membre
+    channel_name = f"{member.name.lower().replace(' ', '-')}-{member.discriminator}"
+
+    # Créer le salon textuel en y ajoutant dans le topic l'ID du membre pour le retrouver plus tard
+    user_channel = await guild.create_text_channel(
+        name=channel_name, 
+        overwrites=overwrites, 
+        topic=f"Salon personnel de {member.name}. ID: {member.id}"
+    )
 
     # Liste des commandes autorisées pour l'utilisateur
     commandes = ("/fiche | /Listejeux | /Dernier | /Style | "
@@ -225,14 +232,15 @@ async def on_member_join(member):
     # Envoyer le message dans le salon personnel
     await user_channel.send(welcome_message)
 
+
 @bot.event
 async def on_member_remove(member):
     guild = member.guild
-    # Chercher le salon personnel du membre par son nom
-    channel = discord.utils.get(guild.text_channels, name=member.name)
-    if channel:
-        await channel.delete(reason=f"Le membre {member.name} a quitté le serveur")
-
+    # Parcourir tous les salons textuels du serveur
+    for channel in guild.text_channels:
+        # Si le topic du salon contient l'ID du membre, c'est son salon personnel
+        if channel.topic and f"ID: {member.id}" in channel.topic:
+            await channel.delete(reason=f"Le membre {member.name} a quitté le serveur")
 
 @bot.tree.command(name="ask", description="Demande l'ajout d'un jeu")
 async def ask(interaction: discord.Interaction, game_name: str):
