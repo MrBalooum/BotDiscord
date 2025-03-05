@@ -216,8 +216,7 @@ async def on_member_join(member):
 
     await user_channel.send(f"Bienvenue {member.mention} ! Seul toi, l'admin et le bot pouvons écrire ici.")
     print(f"✅ Salon personnel créé : {user_channel.name}")
-      
-        print(f"✅ Salon créé : {user_channel.name}")
+    print(f"✅ Salon créé : {user_channel.name}")
     except Exception as e:
         print(f"❌ Erreur lors de la création du salon : {e}")
         return  # On arrête ici si la création a échoué
