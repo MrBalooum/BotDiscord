@@ -7,7 +7,7 @@ import random
 import re
 from discord import app_commands
 from discord import Object
-
+from discord import Permissions, Object
 
 
 # Vérification et installation de requests si manquant
