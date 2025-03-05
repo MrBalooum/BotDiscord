@@ -248,6 +248,7 @@ async def on_member_join(member):
         "/fiche | /Listejeux | /Dernier | /Style | "
         "/Proposejeu | /Proposejeutype | /Type | /Ask | "
         "/Fav | /Favori | /Unfav | /Probleme\n\n"
+        "La modération va te donner accès à toutes les commandes listées sous peu."
         "N'oublie pas de consulter le salon #rules pour connaître les règles du serveur.\n"
         "Bienvenue et amuse-toi bien !"
     )
