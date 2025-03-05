@@ -201,35 +201,76 @@ async def ask(interaction: discord.Interaction, game_name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout de la demande : {str(e)}", ephemeral=True)
 
-# Mise à jour de la commande de suppression de problème
 @bot.tree.command(name="supprdemande", description="Supprime une demande de jeu ou un problème signalé (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def supprdemande(interaction: discord.Interaction, name: str, type: str):
-    """Supprime une demande ou un problème et informe le salon général si un problème est résolu."""
+    """Supprime une demande ou un problème et informe les utilisateurs de la résolution."""
     type_clean = type.strip().lower()
+
     try:
         if type_clean == "probleme":
-            cursor.execute("DELETE FROM game_problems WHERE LOWER(game) = %s RETURNING game", (name.lower(),))
-            deleted_game = cursor.fetchone()
-            conn.commit()
-            if deleted_game:
+            cursor.execute("SELECT user_id, game FROM game_problems WHERE LOWER(game) = %s", (name.lower(),))
+            problem_data = cursor.fetchone()
+
+            if problem_data:
+                user_id, game_name = problem_data
+                cursor.execute("DELETE FROM game_problems WHERE LOWER(game) = %s", (name.lower(),))
+                conn.commit()
+
+                # Message dans le salon général
                 general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
                 if general_channel:
-                    await general_channel.send(f"✅ **Le problème sur {deleted_game[0].capitalize()} a été résolu !**")
-            await interaction.response.send_message(f"✅ Le problème sur **{name.capitalize()}** a été supprimé avec succès.")
+                    await general_channel.send(f"✅ **Le problème sur {game_name.capitalize()} a été résolu !**")
+
+                # Envoi d'un message privé si c'était un problème technique
+                user = await bot.fetch_user(user_id)
+                if user:
+                    await user.send(f"✅ **Votre problème technique sur {game_name.capitalize()} a été résolu !**")
+
+                await interaction.response.send_message(f"✅ Le problème sur **{game_name.capitalize()}** a été supprimé avec succès.")
+
+            else:
+                await interaction.response.send_message(f"❌ Aucun problème trouvé pour **{name.capitalize()}**.", ephemeral=True)
+
+        elif type_clean == "demande":
+            cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s RETURNING game_name", (name.lower(),))
+            deleted_request = cursor.fetchone()
+            conn.commit()
+
+            if deleted_request:
+                await interaction.response.send_message(f"✅ La demande pour **{deleted_request[0].capitalize()}** a été supprimée avec succès.")
+            else:
+                await interaction.response.send_message(f"❌ Aucune demande trouvée pour **{name.capitalize()}**.", ephemeral=True)
+
         else:
-            await interaction.response.send_message("❌ Type invalide. Utilisez 'probleme'.", ephemeral=True)
+            await interaction.response.send_message("❌ Type invalide. Utilisez 'demande' ou 'probleme'.", ephemeral=True)
+
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression : {str(e)}", ephemeral=True)
         
 @supprdemande.autocomplete("type")
-async def supprdemande_type_autocomplete(interaction: discord.Interaction, current: str):
-    """Propose 'demande' ou 'probleme' pour le paramètre 'type'."""
-    current_lower = current.lower().strip()
-    options = ["demande", "probleme"]
-    suggestions = [option for option in options if current_lower in option]
-    return [app_commands.Choice(name=s.capitalize(), value=s) for s in suggestions]
+@supprdemande.autocomplete("name")
+async def supprdemande_autocomplete(interaction: discord.Interaction, current: str):
+    """Autocomplétion pour 'type' et 'name' dans /supprdemande."""
+    
+    if interaction.command.name == "supprdemande":
+        param_name = interaction.data["options"][0]["name"]
+
+        if param_name == "type":
+            # Autocomplétion pour 'type'
+            options = ["demande", "probleme"]
+            return [app_commands.Choice(name=opt.capitalize(), value=opt) for opt in options if current.lower() in opt]
+
+        elif param_name == "name":
+            # Autocomplétion pour 'name' (jeux ayant des problèmes signalés)
+            try:
+                cursor.execute("SELECT DISTINCT game FROM game_problems WHERE LOWER(game) LIKE %s LIMIT 25", (f"%{current.lower()}%",))
+                results = cursor.fetchall()
+                return [app_commands.Choice(name=row[0].capitalize(), value=row[0]) for row in results]
+            except Exception as e:
+                conn.rollback()
+                return []
 
 @bot.tree.command(name="supprjeu", description="Supprime un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
@@ -648,17 +689,26 @@ async def probleme(interaction: discord.Interaction, game: str, message: str, ty
         await interaction.response.send_message(f"❌ Erreur lors de la signalisation du problème : {str(e)}", ephemeral=True)
         
 @probleme.autocomplete("game")
+@probleme.autocomplete("type_probleme")
 async def probleme_autocomplete(interaction: discord.Interaction, current: str):
-    """Propose des noms de jeux présents dans la bibliothèque pour le paramètre 'game'."""
-    current_lower = current.strip().lower()
-    try:
-        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
-        results = cursor.fetchall()
-        suggestions = [row[0].capitalize() for row in results]
-        return [app_commands.Choice(name=s, value=s) for s in suggestions]
-    except Exception as e:
-        conn.rollback()
-        return []
+    """Autocomplétion pour le paramètre 'game' et 'type_probleme' dans /probleme."""
+    
+    if interaction.command.name == "probleme":
+        if interaction.data["options"][0]["name"] == "game":
+            # Autocomplétion pour 'game'
+            current_lower = current.strip().lower()
+            try:
+                cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
+                results = cursor.fetchall()
+                return [app_commands.Choice(name=row[0].capitalize(), value=row[0]) for row in results]
+            except Exception as e:
+                conn.rollback()
+                return []
+        
+        elif interaction.data["options"][0]["name"] == "type_probleme":
+            # Autocomplétion pour 'type_probleme'
+            options = ["jeu", "technique"]
+            return [app_commands.Choice(name=opt.capitalize(), value=opt) for opt in options if current.lower() in opt]
 
 ############################################
 # Modification de /demandes pour afficher 2 messages
