@@ -440,25 +440,31 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
 async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
     """Propose des noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
     current_lower = current.strip().lower()
-    
+
+    print(f"🔎 Autocomplétion appelée avec '{current_lower}'")
+
     if not current_lower:
-        return []  # Si l'utilisateur n'a rien tapé, ne retourne rien
+        print("❌ Aucun texte saisi, retour d'une liste vide.")
+        return []
 
     try:
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
         results = cursor.fetchall()
 
-        print(f"🔎 Résultats Autocomplete: {results}")  # Debug: voir ce qui est retourné
+        print(f"✅ Résultats SQL : {results}")
 
-        return [
+        suggestions = [
             app_commands.Choice(name=row[0].capitalize(), value=row[0])
             for row in results if row[0]  # Vérifie que row[0] n'est pas vide
         ]
+
+        print(f"📌 Suggestions envoyées à Discord : {suggestions}")
+        return suggestions
+
     except Exception as e:
         conn.rollback()
-        print(f"❌ Erreur Autocomplete (name) : {str(e)}")  # Debugging
+        print(f"❌ Erreur SQL lors de l'autocomplétion : {str(e)}")
         return []
-
 
 # ✅ Correction de l'Autocomplétion pour "champ"
 @modifjeu.autocomplete("champ")
