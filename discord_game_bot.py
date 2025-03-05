@@ -228,9 +228,10 @@ async def supprdemande(interaction: discord.Interaction, name: str, type: str):
                 tech_channel = discord.utils.get(interaction.guild.text_channels, name="mrbalooum")
 
                 if "(Problème technique)" in game_name:
-                    # ✅ Problème technique -> Message dans #général
-                    if general_channel:
-                        await general_channel.send(f"🎉 **Ton problème technique sur {game_name} a été résolu !**")
+                    # ✅ Problème technique -> MP à l’utilisateur
+                    user = await bot.fetch_user(user_id)
+                    if user:
+                        await user.send(f"🎉 **Ton problème technique sur {game_name} a été résolu !**")
                 else:
                     # ✅ Problème de jeu -> Message dans #général et #mrbalooum
                     if general_channel:
