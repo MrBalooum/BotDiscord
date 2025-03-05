@@ -257,21 +257,32 @@ async def supprdemande(interaction: discord.Interaction, name: str, type: str):
 
 @supprdemande.autocomplete("type")
 async def supprdemande_type_autocomplete(interaction: discord.Interaction, current: str):
-    """Propose 'demande' ou 'probleme' pour le paramètre 'type'."""
+    """Autocomplétion du paramètre 'type' avec 'demande' et 'probleme'."""
     options = ["demande", "probleme"]
     return [app_commands.Choice(name=opt.capitalize(), value=opt) for opt in options if current.lower() in opt]
 
 @supprdemande.autocomplete("name")
 async def supprdemande_name_autocomplete(interaction: discord.Interaction, current: str):
     """Autocomplétion des jeux ayant des problèmes signalés."""
+    current_lower = current.strip().lower()
     try:
-        cursor.execute("SELECT DISTINCT game FROM game_problems WHERE LOWER(game) LIKE %s LIMIT 25", (f"%{current.lower()}%",))
+        cursor.execute("""
+            SELECT DISTINCT game FROM game_problems 
+            WHERE LOWER(game) LIKE %s 
+            ORDER BY game ASC 
+            LIMIT 25
+        """, (f"%{current_lower}%",))
         results = cursor.fetchall()
+        
+        if not results:
+            return []
+
         return [app_commands.Choice(name=row[0].capitalize(), value=row[0]) for row in results]
+    
     except Exception as e:
         conn.rollback()
         return []
-        
+
 @bot.tree.command(name="supprjeu", description="Supprime un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def supprjeu(interaction: discord.Interaction, name: str):
@@ -706,7 +717,10 @@ async def probleme(interaction: discord.Interaction, game: str, message: str, ty
 @probleme.autocomplete("type_probleme")
 async def probleme_autocomplete(interaction: discord.Interaction, current: str):
     """Autocomplétion pour 'game' et 'type_probleme'."""
-    if interaction.data["options"][0]["name"] == "game":
+    
+    param_name = interaction.data["options"][0]["name"]  # Vérifie quel paramètre on complète
+
+    if param_name == "game":
         current_lower = current.strip().lower()
         try:
             cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
@@ -716,7 +730,7 @@ async def probleme_autocomplete(interaction: discord.Interaction, current: str):
             conn.rollback()
             return []
     
-    elif interaction.data["options"][0]["name"] == "type_probleme":
+    elif param_name == "type_probleme":
         return [app_commands.Choice(name="Jeu", value="jeu"), app_commands.Choice(name="Technique", value="technique")]
 
 ############################################
