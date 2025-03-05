@@ -878,7 +878,7 @@ async def proposejeu(interaction: discord.Interaction):
         if games:
             jeu_choisi = random.choice(games)[0]
             cursor.execute("""
-                SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link
+                SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link, commentaire
                 FROM games WHERE LOWER(nom) = %s
             """, (jeu_choisi.lower(),))
             game_info = cursor.fetchone()
@@ -891,6 +891,8 @@ async def proposejeu(interaction: discord.Interaction):
                 embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
                 embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
                 embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+                if game_info[8]:
+                    embed.add_field(name="ℹ️ Commentaire", value=game_info[8], inline=False)
                 await interaction.response.send_message(f"🎲 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", embed=embed)
             else:
                 await interaction.response.send_message("❌ Erreur lors de la récupération de la fiche du jeu.")
@@ -915,7 +917,7 @@ async def proposejeutype(interaction: discord.Interaction, game_type: str):
         if matching_games:
             jeu_choisi = random.choice(matching_games)
             cursor.execute("""
-                SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link
+                SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link, commentaire
                 FROM games WHERE LOWER(nom) = %s
             """, (jeu_choisi.lower(),))
             game_info = cursor.fetchone()
@@ -928,6 +930,8 @@ async def proposejeutype(interaction: discord.Interaction, game_type: str):
                 embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
                 embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
                 embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+                if game_info[8]:
+                    embed.add_field(name="ℹ️ Commentaire", value=game_info[8], inline=False)
                 await interaction.response.send_message(f"🎲 Pourquoi ne pas essayer **{jeu_choisi.capitalize()}** ?", embed=embed)
             else:
                 await interaction.response.send_message("❌ Erreur lors de la récupération de la fiche du jeu.")
