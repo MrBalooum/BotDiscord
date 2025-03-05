@@ -146,9 +146,9 @@ async def fiche(interaction: discord.Interaction, game: str):
             embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
             if game_info[8]:
                 embed.add_field(name="ℹ️ Commentaire", value=game_info[8], inline=False)
-            
+
             view = discord.ui.View()
-            
+
             class FavButton(discord.ui.Button):
                 def __init__(self):
                     super().__init__(style=discord.ButtonStyle.primary, emoji="⭐", label="Ajouter aux favoris")
@@ -160,7 +160,7 @@ async def fiche(interaction: discord.Interaction, game: str):
                     except Exception as e:
                         conn.rollback()
                         await interaction.response.send_message(f"❌ Erreur lors de l'ajout aux favoris : {str(e)}", ephemeral=True)
-            
+
             view.add_item(FavButton())
             await interaction.response.send_message(embed=embed, view=view)
         else:
@@ -168,7 +168,7 @@ async def fiche(interaction: discord.Interaction, game: str):
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur SQL: {str(e)}", ephemeral=True)
-        
+
 @fiche.autocomplete("game")
 async def fiche_autocomplete(interaction: discord.Interaction, current: str):
     current_lower = current.lower().strip()
@@ -185,46 +185,24 @@ async def fiche_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
-        
 @bot.event
 async def on_member_join(member):
     guild = member.guild
 
-    # Rechercher (ou créer) le rôle "UserAccess"
-    role = discord.utils.get(guild.roles, name="UserAccess")
-    if role is None:
-        role = await guild.create_role(name="UserAccess")
-    
-    # Attribuer le rôle au nouveau membre
-    await member.add_roles(role)
-
-    # Définir le nom du salon basé sur le pseudo du membre (sans ajout de suffixe)
-    channel_name = member.name.lower().replace(" ", "-")
-
-    # Si un salon avec ce nom existe déjà, le supprimer pour éviter le suffixe "-0"
-    existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
-    if existing_channel:
-        await existing_channel.delete(reason="Création d'un nouveau salon personnel pour le membre.")
-
-    # Définir les permissions : seul le membre et le rôle "UserAccess" peuvent voir et écrire dans le salon
+    # Définir les permissions : seul le membre peut voir et écrire dans le salon
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
-        member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
-        role: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True)
+        member: discord.PermissionOverwrite(view_channel=True, send_messages=True)
     }
 
-    # Créer le salon textuel avec le nom sans suffixe et ajouter l'ID du membre dans le topic pour le retrouver plus tard
-    user_channel = await guild.create_text_channel(
-        name=channel_name,
-        overwrites=overwrites,
-        topic=f"Salon personnel de {member.name}. ID: {member.id}"
-    )
+    # Créer le salon textuel portant le nom du membre
+    user_channel = await guild.create_text_channel(name=member.name, overwrites=overwrites)
 
     # Liste des commandes autorisées pour l'utilisateur
     commandes = ("/fiche | /Listejeux | /Dernier | /Style | "
                  "/Proposejeu | /Proposejeutype | /Type | /Ask | "
                  "/Fav | /Favori | /Unfav | /Probleme")
-    
+
     # Message de bienvenue personnalisé
     welcome_message = (
         f"Bienvenue {member.mention} sur ton salon personnel !\n"
@@ -236,15 +214,6 @@ async def on_member_join(member):
 
     # Envoyer le message dans le salon personnel
     await user_channel.send(welcome_message)
-
-
-@bot.event
-async def on_member_remove(member):
-    guild = member.guild
-    # Parcourir tous les salons textuels du serveur et supprimer celui associé au membre
-    for channel in guild.text_channels:
-        if channel.topic and f"ID: {member.id}" in channel.topic:
-            await channel.delete(reason=f"Le membre {member.name} a quitté le serveur")
 
 @bot.tree.command(name="ask", description="Demande l'ajout d'un jeu")
 async def ask(interaction: discord.Interaction, game_name: str):
@@ -268,16 +237,6 @@ async def ask(interaction: discord.Interaction, game_name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout de la demande : {str(e)}", ephemeral=True)
 
-from discord import Permissions, Object
-
-GUILD_ID = 1343310341655892028  # ID de ton serveur
-
-@bot.tree.command(
-    name="supprdemande",
-    description="supprime une demande (ADMIN)",
-    guild=Object(id=GUILD_ID),
-    default_member_permissions=Permissions(administrator=True)
-)
 @bot.tree.command(name="supprdemande", description="Supprime une demande de jeu ou un problème signalé (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def supprdemande(interaction: discord.Interaction, name: str, type: str):
@@ -350,25 +309,15 @@ async def supprdemande_name_autocomplete(interaction: discord.Interaction, curre
             LIMIT 25
         """, (f"%{current_lower}%",))
         results = cursor.fetchall()
-        
+
         if not results:
             return []
 
         return [app_commands.Choice(name=row[0].capitalize(), value=row[0]) for row in results]
-    
+
     except Exception as e:
         conn.rollback()
         return []
-
-from discord import Permissions, Object
-
-GUILD_ID = 1343310341655892028  # ID de ton serveur
-
-@bot.tree.command(
-    name="supprjeu",
-    description="supprime jeu (ADMIN)",
-    guild=Object(id=GUILD_ID),
-    default_member_permissions=Permissions(administrator=True)
 
 @bot.tree.command(name="supprjeu", description="Supprime un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
@@ -393,12 +342,12 @@ async def supprjeu(interaction: discord.Interaction, name: str):
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
-        
+
 @supprjeu.autocomplete("name")
 async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
     """Propose les noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
-    current_lower = current.strip().lower()
     try:
+        current_lower = current.strip().lower()
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
         results = cursor.fetchall()
         suggestions = [row[0] for row in results]
@@ -407,15 +356,6 @@ async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
         conn.rollback()
         return []
 
-from discord import Permissions, Object
-
-GUILD_ID = 1343310341655892028  # ID de ton serveur
-
-@bot.tree.command(
-    name="modifjeu",
-    description="modifie un jeu (ADMIN)",
-    guild=Object(id=GUILD_ID),
-    default_member_permissions=Permissions(administrator=True)
 
 @bot.tree.command(name="modifjeu", description="Modifie un champ d'un jeu (ADMIN)")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
@@ -456,7 +396,7 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
         actual_field = mapping[champ_clean]
         cursor.execute(f"UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s", (new_value, f"%{name_clean}%"))
         conn.commit()
-        
+
         await interaction.response.send_message(f"✅ {champ.capitalize()} de **{name.capitalize()}** mis à jour : {new_value}")
 
     except Exception as e:
@@ -474,7 +414,7 @@ async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
-        
+
 @modifjeu.autocomplete("champ")
 async def modifjeu_champ_autocomplete(interaction: discord.Interaction, current: str):
     """Autocomplétion pour le champ à modifier."""
@@ -489,7 +429,7 @@ async def modifjeu_champ_autocomplete(interaction: discord.Interaction, current:
         "steam": "steam_link",
         "commentaire": "commentaire"
     }
-    
+
     current_lower = current.strip().lower()
     return [
         app_commands.Choice(name=key.capitalize(), value=value)
@@ -598,16 +538,6 @@ async def unfav_autocomplete(interaction: discord.Interaction, current: str):
         conn.rollback()
         return []
 
-from discord import Permissions, Object
-
-GUILD_ID = 1343310341655892028  # ID de ton serveur
-
-@bot.tree.command(
-    name="ajoutjeu",
-    description="Ajoute un jeu (ADMIN)",
-    guild=Object(id=GUILD_ID),
-    default_member_permissions=Permissions(administrator=True)
-
 @bot.tree.command(name="ajoutjeu", description="Ajoute un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def ajoutjeu(
@@ -623,11 +553,11 @@ async def ajoutjeu(
             (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link, commentaire)
         )
         save_database()
-        
+
         # Supprime la demande associée s'il y en avait une
         cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
         conn.commit()
-        
+
         # Récupérer les infos du jeu ajouté
         cursor.execute("""
             SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link, commentaire
@@ -647,7 +577,7 @@ async def ajoutjeu(
         embed.add_field(name="ℹ️ Commentaire", value=game_info[8], inline=False)
 
         await interaction.response.send_message(f"✅ **{name.capitalize()}** ajouté avec succès et retiré des demandes !")
-        
+
         general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
         if general_channel:
             await general_channel.send(f"📣 **{name.capitalize()}** vient d'être ajouté !", embed=embed)
@@ -662,16 +592,6 @@ async def ajoutjeu(
 ############################################
 # NOUVELLE COMMANDE POUR AJOUTER PLUSIEURS JEUX
 ############################################
-
-from discord import Permissions, Object
-
-GUILD_ID = 1343310341655892028  # ID de ton serveur
-
-@bot.tree.command(
-    name="ajoutjeux",
-    description="Ajoute des jeux (ADMIN)",
-    guild=Object(id=GUILD_ID),
-    default_member_permissions=Permissions(administrator=True)
 
 import asyncio
 import re
@@ -702,12 +622,12 @@ async def ajoutjeux(interaction: discord.Interaction, games: str):
 
     added_games = []
     errors = []
-    
+
     # On répond d'abord au slash command pour éviter le "Interaction Failed"
     await interaction.response.send_message("⏳ Traitement en cours...", ephemeral=True)
-    
+
     general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
-    
+
     for i in range(0, total, 8):
         nom, date_sortie, prix, type_jeu, duree, cloud, lien_yt, lien_steam = matches[i:i+8]
         try:
@@ -729,7 +649,7 @@ async def ajoutjeux(interaction: discord.Interaction, games: str):
                 embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({lien_yt})", inline=False)
                 if lien_steam.strip():
                     embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({lien_steam})", inline=False)
-                
+
                 await general_channel.send(f"📣 **{nom.capitalize()}** vient d'être ajouté !", embed=embed)
                 # Attendre 3 secondes avant d'envoyer le prochain
                 await asyncio.sleep(3)
@@ -744,14 +664,14 @@ async def ajoutjeux(interaction: discord.Interaction, games: str):
         response += f"✅ Jeux ajoutés : {', '.join(added_games)}\n"
     if errors:
         response += "❌ Erreurs :\n" + "\n".join(errors)
-    
+
     if not response.strip():
         response = "Aucun jeu ajouté et aucune erreur détectée."
-    
+
     # Envoie un message récapitulatif dans le canal "privé" de l'interaction
     # (celui qui a tapé la commande verra ce message)
     await interaction.followup.send(response, ephemeral=True)
-    
+
 @bot.tree.command(name="listejeux", description="Affiche infos Bundle et liste des jeux (15 par page)")
 async def listejeux(interaction: discord.Interaction):
     """Envoie 2 messages : le premier avec les infos du bundle, le second avec la liste paginée des jeux."""
@@ -772,7 +692,7 @@ async def listejeux(interaction: discord.Interaction):
             if t_match:
                 t = float(t_match[0].replace(",", "."))
                 total_time += int(round(t))
-        
+
         # Création du header avec chaque info sur une ligne
         bundle_info = (
             "**🎮 Jeux dans le Bundle :** " + str(total_games) + "\n" +
@@ -780,7 +700,7 @@ async def listejeux(interaction: discord.Interaction):
             "**⏳ Temps total de jeu :** " + str(total_time) + " heures"
         )
         await interaction.response.send_message(bundle_info)
-        
+
         # Récupérer la liste des jeux
         cursor.execute("SELECT nom FROM games ORDER BY LOWER(nom) ASC")
         games = cursor.fetchall()
@@ -797,7 +717,7 @@ async def listejeux(interaction: discord.Interaction):
             )
             embed.description = "\n".join(f"• {name}" for name in page)
             embeds.append(embed)
-        
+
         if len(embeds) == 1:
             await interaction.followup.send(embed=embeds[0])
         else:
@@ -806,7 +726,7 @@ async def listejeux(interaction: discord.Interaction):
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la récupération des jeux : {str(e)}", ephemeral=True)
-        
+
 ############################################
 # Nouvelle commande publique: /probleme
 ############################################
@@ -820,7 +740,7 @@ async def probleme(interaction: discord.Interaction, game: str, message: str, ty
         type_clean = type_probleme.strip().lower()
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{game_clean}%",))
         jeu = cursor.fetchone()
-        
+
         if not jeu:
             await interaction.response.send_message(f"❌ Aucun jeu trouvé correspondant à '{game}'.", ephemeral=True)
             return
@@ -911,7 +831,7 @@ async def demandes(interaction: discord.Interaction):
             demandes_msg = "\n".join(f"- **{r[1]}** (demandé par {r[0]} le {r[2].strftime('%d/%m %H:%M')})" for r in requests_data)
         else:
             demandes_msg = "Aucune demande de jeu."
-        
+
         # Récupérer les problèmes signalés
         cursor.execute("SELECT username, game, message, date FROM game_problems ORDER BY date DESC")
         problems_data = cursor.fetchall()
@@ -919,7 +839,7 @@ async def demandes(interaction: discord.Interaction):
             problemes_msg = "\n".join(f"- **{r[1]}** (signalé par {r[0]} le {r[3].strftime('%d/%m %H:%M')}) : {r[2]}" for r in problems_data)
         else:
             problemes_msg = "Aucun problème signalé."
-        
+
         # Envoyer deux messages séparés
         await interaction.response.send_message("**Demandes de jeux :**\n" + demandes_msg)
         await interaction.followup.send("**Problèmes signalés :**\n" + problemes_msg)
@@ -958,6 +878,7 @@ async def proposejeu(interaction: discord.Interaction):
         if games:
             jeu_choisi = random.choice(games)[0]
             cursor.execute("""
+                SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link
                 SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link, commentaire
                 FROM games WHERE LOWER(nom) = %s
             """, (jeu_choisi.lower(),))
@@ -997,6 +918,7 @@ async def proposejeutype(interaction: discord.Interaction, game_type: str):
         if matching_games:
             jeu_choisi = random.choice(matching_games)
             cursor.execute("""
+                SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link
                 SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link, commentaire
                 FROM games WHERE LOWER(nom) = %s
             """, (jeu_choisi.lower(),))
@@ -1116,5 +1038,18 @@ class PaginationView(discord.ui.View):
             await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
         else:
             await interaction.response.defer()
+
+@supprjeu.autocomplete("name")
+async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
+    """Propose les noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
+    current_lower = current.strip().lower()
+    try:
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
+        results = cursor.fetchall()
+        suggestions = [row[0] for row in results]
+        return [app_commands.Choice(name=s.capitalize(), value=s) for s in suggestions]
+    except Exception as e:
+        conn.rollback()
+        return []
 
 bot.run(TOKEN)
