@@ -638,8 +638,8 @@ from discord import app_commands
 GUILD_ID = 1343310341655892028  # Remplace par l'ID de ton serveur
 
 @bot.tree.command(
-    name="supprdemande",
-    description="Supprime une demande de jeu ou un problème signalé (ADMIN)",
+    name="ajoutjeux",
+    description="ajoute des jeux (ADMIN)",
     guild=discord.Object(id=GUILD_ID)  # Utilise discord.Object au lieu de Object
 )
 @app_commands.default_permissions(administrator=True)  # Définit les permissions ici
