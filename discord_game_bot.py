@@ -198,20 +198,25 @@ async def on_member_join(member):
     # Attribuer le rôle au nouveau membre
     await member.add_roles(role)
 
+    # Définir le nom du salon basé sur le pseudo du membre (sans ajout de suffixe)
+    channel_name = member.name.lower().replace(" ", "-")
+
+    # Si un salon avec ce nom existe déjà, le supprimer pour éviter le suffixe "-0"
+    existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
+    if existing_channel:
+        await existing_channel.delete(reason="Création d'un nouveau salon personnel pour le membre.")
+
     # Définir les permissions : seul le membre et le rôle "UserAccess" peuvent voir et écrire dans le salon
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
-        member: discord.PermissionOverwrite(view_channel=True, send_messages=True),
-        role: discord.PermissionOverwrite(view_channel=True, send_messages=True)
+        member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
+        role: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True)
     }
 
-    # Créer un nom unique pour le salon en utilisant le nom et le discriminateur du membre
-    channel_name = f"{member.name.lower().replace(' ', '-')}-{member.discriminator}"
-
-    # Créer le salon textuel en y ajoutant dans le topic l'ID du membre pour le retrouver plus tard
+    # Créer le salon textuel avec le nom sans suffixe et ajouter l'ID du membre dans le topic pour le retrouver plus tard
     user_channel = await guild.create_text_channel(
-        name=channel_name, 
-        overwrites=overwrites, 
+        name=channel_name,
+        overwrites=overwrites,
         topic=f"Salon personnel de {member.name}. ID: {member.id}"
     )
 
@@ -236,9 +241,8 @@ async def on_member_join(member):
 @bot.event
 async def on_member_remove(member):
     guild = member.guild
-    # Parcourir tous les salons textuels du serveur
+    # Parcourir tous les salons textuels du serveur et supprimer celui associé au membre
     for channel in guild.text_channels:
-        # Si le topic du salon contient l'ID du membre, c'est son salon personnel
         if channel.topic and f"ID: {member.id}" in channel.topic:
             await channel.delete(reason=f"Le membre {member.name} a quitté le serveur")
 
@@ -264,6 +268,16 @@ async def ask(interaction: discord.Interaction, game_name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout de la demande : {str(e)}", ephemeral=True)
 
+from discord import Permissions, Object
+
+GUILD_ID = 1343310341655892028  # ID de ton serveur
+
+@bot.tree.command(
+    name="supprdemande",
+    description="supprime une demande (ADMIN)",
+    guild=Object(id=GUILD_ID),
+    default_member_permissions=Permissions(administrator=True)
+)
 @bot.tree.command(name="supprdemande", description="Supprime une demande de jeu ou un problème signalé (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def supprdemande(interaction: discord.Interaction, name: str, type: str):
@@ -346,6 +360,16 @@ async def supprdemande_name_autocomplete(interaction: discord.Interaction, curre
         conn.rollback()
         return []
 
+from discord import Permissions, Object
+
+GUILD_ID = 1343310341655892028  # ID de ton serveur
+
+@bot.tree.command(
+    name="supprjeu",
+    description="supprime jeu (ADMIN)",
+    guild=Object(id=GUILD_ID),
+    default_member_permissions=Permissions(administrator=True)
+
 @bot.tree.command(name="supprjeu", description="Supprime un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def supprjeu(interaction: discord.Interaction, name: str):
@@ -369,12 +393,12 @@ async def supprjeu(interaction: discord.Interaction, name: str):
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression du jeu : {str(e)}", ephemeral=True)
-
+        
 @supprjeu.autocomplete("name")
 async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
     """Propose les noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
+    current_lower = current.strip().lower()
     try:
-        current_lower = current.strip().lower()
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
         results = cursor.fetchall()
         suggestions = [row[0] for row in results]
@@ -383,6 +407,15 @@ async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
         conn.rollback()
         return []
 
+from discord import Permissions, Object
+
+GUILD_ID = 1343310341655892028  # ID de ton serveur
+
+@bot.tree.command(
+    name="modifjeu",
+    description="modifie un jeu (ADMIN)",
+    guild=Object(id=GUILD_ID),
+    default_member_permissions=Permissions(administrator=True)
 
 @bot.tree.command(name="modifjeu", description="Modifie un champ d'un jeu (ADMIN)")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
@@ -565,6 +598,16 @@ async def unfav_autocomplete(interaction: discord.Interaction, current: str):
         conn.rollback()
         return []
 
+from discord import Permissions, Object
+
+GUILD_ID = 1343310341655892028  # ID de ton serveur
+
+@bot.tree.command(
+    name="ajoutjeu",
+    description="Ajoute un jeu (ADMIN)",
+    guild=Object(id=GUILD_ID),
+    default_member_permissions=Permissions(administrator=True)
+
 @bot.tree.command(name="ajoutjeu", description="Ajoute un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def ajoutjeu(
@@ -619,6 +662,16 @@ async def ajoutjeu(
 ############################################
 # NOUVELLE COMMANDE POUR AJOUTER PLUSIEURS JEUX
 ############################################
+
+from discord import Permissions, Object
+
+GUILD_ID = 1343310341655892028  # ID de ton serveur
+
+@bot.tree.command(
+    name="ajoutjeux",
+    description="Ajoute des jeux (ADMIN)",
+    guild=Object(id=GUILD_ID),
+    default_member_permissions=Permissions(administrator=True)
 
 import asyncio
 import re
@@ -1063,18 +1116,5 @@ class PaginationView(discord.ui.View):
             await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
         else:
             await interaction.response.defer()
-
-@supprjeu.autocomplete("name")
-async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
-    """Propose les noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
-    current_lower = current.strip().lower()
-    try:
-        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
-        results = cursor.fetchall()
-        suggestions = [row[0] for row in results]
-        return [app_commands.Choice(name=s.capitalize(), value=s) for s in suggestions]
-    except Exception as e:
-        conn.rollback()
-        return []
 
 bot.run(TOKEN)
