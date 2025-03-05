@@ -710,6 +710,7 @@ async def probleme(interaction: discord.Interaction, game: str, message: str, ty
             return
 
         jeu_nom = jeu[0].capitalize()
+        date_heure = interaction.created_at.strftime('%d/%m/%Y %H:%M')
 
         if type_clean == "jeu":
             cursor.execute(
@@ -717,15 +718,22 @@ async def probleme(interaction: discord.Interaction, game: str, message: str, ty
                 (interaction.user.id, interaction.user.name, jeu_nom, message)
             )
             conn.commit()
+
             general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
+            tech_channel = discord.utils.get(interaction.guild.text_channels, name="mrbalooum")
+
             if general_channel:
-                await general_channel.send(f"🚨 **{jeu_nom}** a un problème ! (Signalé par {interaction.user.name} à {interaction.created_at.strftime('%d/%m/%Y %H:%M')})")
+                await general_channel.send(f"🚨 **{jeu_nom}** a un problème ! (Signalé par {interaction.user.name} à {date_heure})")
+
+            if tech_channel:
+                await tech_channel.send(f"🎮 **{jeu_nom} (Problème jeu)**\n**Utilisateur :** {interaction.user.name}\n**Message :** {message}\n**Date :** {date_heure}")
+
             await interaction.response.send_message(f"✅ Problème signalé pour **{jeu_nom}** : {message}")
 
         elif type_clean == "technique":
             tech_channel = discord.utils.get(interaction.guild.text_channels, name="mrbalooum")
             if tech_channel:
-                await tech_channel.send(f"🔧 **{jeu_nom} (Problème technique)**\n**Utilisateur :** {interaction.user.name}\n**Message :** {message}\n**Date :** {interaction.created_at.strftime('%d/%m/%Y %H:%M')}")
+                await tech_channel.send(f"🔧 **{jeu_nom} (Problème technique)**\n**Utilisateur :** {interaction.user.name}\n**Message :** {message}\n**Date :** {date_heure}")
             await interaction.response.send_message(f"✅ Problème technique signalé pour **{jeu_nom}**")
 
         else:
