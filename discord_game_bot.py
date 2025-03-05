@@ -207,7 +207,6 @@ async def on_member_join(member):
         guild.owner: discord.PermissionOverwrite(view_channel=True, send_messages=True)  # L'admin peut écrire
     }
 
-   try:
     # 🔹 Créer le salon textuel
     user_channel = await guild.create_text_channel(
         name=channel_name,
