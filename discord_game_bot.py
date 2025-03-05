@@ -192,41 +192,31 @@ import asyncio
 async def on_member_join(member):
     guild = member.guild
 
-    print(f"🔹 Nouveau membre : {member.name}")
-
-    # Vérification du rôle UserAccess
-    role = discord.utils.get(guild.roles, name="UserAccess")
-    if role is None:
-        role = await guild.create_role(name="UserAccess")
-        print("✅ Rôle UserAccess créé")
-
-    # Ajouter le rôle au membre
-    await member.add_roles(role)
-    print(f"✅ Rôle UserAccess ajouté à {member.name}")
-
-    # Définition du nom du salon
+    # 🔹 Vérifier si un salon personnel existe déjà et le supprimer
     channel_name = member.name.lower().replace(" ", "-")
-
-    # Vérifier si un salon avec ce nom existe déjà et le supprimer
     existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
-    if existing_channel:
-        print(f"🗑️ Suppression de l'ancien salon {existing_channel.name}")
-        await existing_channel.delete(reason="Création d'un nouveau salon personnel.")
 
-    # Définition des permissions du salon
+    if existing_channel:
+        await existing_channel.delete(reason="Nouveau salon personnel créé.")
+
+    # 🔹 Définir les permissions du salon (Seul l'utilisateur, l'admin et le bot peuvent écrire)
     overwrites = {
-        guild.default_role: discord.PermissionOverwrite(view_channel=False),
-        member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
-        role: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True)
+        guild.default_role: discord.PermissionOverwrite(view_channel=False, send_messages=False),  # Personne ne voit sauf user
+        member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),  # L'utilisateur peut écrire
+        guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True),  # Le bot peut écrire
+        guild.owner: discord.PermissionOverwrite(view_channel=True, send_messages=True)  # L'admin peut écrire
     }
 
-    # Création du salon textuel
-    try:
-        user_channel = await guild.create_text_channel(
-            name=channel_name,
-            overwrites=overwrites,
-            topic=f"Salon personnel de {member.name}. ID: {member.id}"
-        )
+    # 🔹 Créer le salon textuel
+    user_channel = await guild.create_text_channel(
+        name=channel_name,
+        overwrites=overwrites,
+        topic=f"Salon personnel de {member.name}. ID: {member.id}"
+    )
+
+    await user_channel.send(f"Bienvenue {member.mention} ! Seul toi, l'admin et le bot pouvons écrire ici.")
+    print(f"✅ Salon personnel créé : {user_channel.name}")
+      
         print(f"✅ Salon créé : {user_channel.name}")
     except Exception as e:
         print(f"❌ Erreur lors de la création du salon : {e}")
@@ -425,8 +415,8 @@ async def supprjeu(interaction: discord.Interaction, name: str):
 @supprjeu.autocomplete("name")
 async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
     """Propose les noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
+    current_lower = current.strip().lower()
     try:
-        current_lower = current.strip().lower()
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
         results = cursor.fetchall()
         suggestions = [row[0] for row in results]
@@ -434,7 +424,6 @@ async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
-
 
 @bot.tree.command(name="modifjeu", description="Modifie un champ d'un jeu (ADMIN)")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
@@ -1118,17 +1107,50 @@ class PaginationView(discord.ui.View):
         else:
             await interaction.response.defer()
 
-@supprjeu.autocomplete("name")
-async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
-    """Propose les noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
-    current_lower = current.strip().lower()
-    try:
-        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
-        results = cursor.fetchall()
-        suggestions = [row[0] for row in results]
-        return [app_commands.Choice(name=s.capitalize(), value=s) for s in suggestions]
-    except Exception as e:
-        conn.rollback()
-        return []
+@bot.tree.command(name="update_permissions", description="Met à jour les permissions des salons")
+@commands.has_permissions(administrator=True)
+async def update_permissions(interaction: discord.Interaction):
+    """Met à jour les permissions de tous les salons :
+       - Seul l'admin et le bot peuvent écrire partout.
+       - Les utilisateurs peuvent uniquement écrire dans leur salon personnel.
+    """
+    guild = interaction.guild
+    admin = interaction.user  # L'admin qui exécute la commande
+
+    for channel in guild.text_channels:
+        # 🔍 Trouver si ce salon est un salon personnel en vérifiant s'il contient l'ID d'un utilisateur
+        is_personal_channel = False
+        user_id = None
+
+        if channel.topic and "ID: " in channel.topic:
+            try:
+                user_id = int(channel.topic.split("ID: ")[1])
+                is_personal_channel = True
+            except ValueError:
+                pass
+
+        if is_personal_channel:
+            # 🔹 Salon personnel -> L'utilisateur peut écrire, mais pas les autres
+            user = guild.get_member(user_id)
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(send_messages=False),
+                guild.me: discord.PermissionOverwrite(send_messages=True),  # Le bot peut écrire
+                admin: discord.PermissionOverwrite(send_messages=True)  # L'admin peut écrire
+            }
+            if user:
+                overwrites[user] = discord.PermissionOverwrite(send_messages=True)  # L'utilisateur peut écrire
+
+        else:
+            # 🔹 Salons publics (ex: général, règles, autres) -> Seul le bot et l'admin peuvent écrire
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(send_messages=False),  # Tout le monde est bloqué
+                guild.me: discord.PermissionOverwrite(send_messages=True),  # Le bot peut écrire
+                admin: discord.PermissionOverwrite(send_messages=True)  # L'admin peut écrire
+            }
+
+        await channel.edit(overwrites=overwrites)
+        print(f"🔒 Permissions mises à jour pour {channel.name}")
+
+    await interaction.response.send_message("✅ **Permissions mises à jour !**", ephemeral=True)
 
 bot.run(TOKEN)
