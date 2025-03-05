@@ -365,7 +365,7 @@ async def supprdemande(interaction: discord.Interaction, name: str, type: str):
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression : {str(e)}", ephemeral=True)
-    if user_channel:
+if user_channel:
     print(f"📌 Salon personnel trouvé pour {user_id}: {user_channel.name}")
 else:
     print(f"⚠️ Aucun salon personnel trouvé pour {user_id}, envoi dans #général")
