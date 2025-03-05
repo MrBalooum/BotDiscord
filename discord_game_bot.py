@@ -87,6 +87,12 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS game_problems (
 )''')
 conn.commit()
 
+# Ajout de la colonne "Commentaire" si elle n'existe pas
+cursor.execute("""
+    ALTER TABLE games ADD COLUMN IF NOT EXISTS commentaire TEXT
+""")
+conn.commit()
+
 @bot.event
 async def on_ready():
     try:
@@ -107,13 +113,14 @@ def save_database():
 
 from discord import app_commands
 
+# Commande pour afficher la fiche d'un jeu
 @bot.tree.command(name="fiche", description="Affiche la fiche détaillée d'un jeu")
 async def fiche(interaction: discord.Interaction, game: str):
     """Affiche la fiche d'un jeu dont le nom est fourni."""
     game_query = game.strip().lower()
     try:
         cursor.execute("""
-            SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link
+            SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link, commentaire
             FROM games
             WHERE TRIM(LOWER(nom)) = %s
         """, (game_query,))
@@ -130,13 +137,31 @@ async def fiche(interaction: discord.Interaction, game: str):
             embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
             embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
             embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
-            await interaction.response.send_message(embed=embed)
+            if game_info[8]:
+                embed.add_field(name="ℹ️ Commentaire", value=game_info[8], inline=False)
+            
+            view = discord.ui.View()
+            
+            class FavButton(discord.ui.Button):
+                def __init__(self):
+                    super().__init__(style=discord.ButtonStyle.primary, emoji="⭐", label="Ajouter aux favoris")
+                async def callback(self, interaction: discord.Interaction):
+                    try:
+                        cursor.execute("INSERT INTO user_favorites (user_id, game) VALUES (%s, %s) ON CONFLICT DO NOTHING", (interaction.user.id, game_info[0]))
+                        conn.commit()
+                        await interaction.response.send_message(f"✅ **{game_info[0].capitalize()}** ajouté à vos favoris !", ephemeral=True)
+                    except Exception as e:
+                        conn.rollback()
+                        await interaction.response.send_message(f"❌ Erreur lors de l'ajout aux favoris : {str(e)}", ephemeral=True)
+            
+            view.add_item(FavButton())
+            await interaction.response.send_message(embed=embed, view=view)
         else:
             await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{game_query}'.", ephemeral=True)
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur SQL: {str(e)}", ephemeral=True)
-
+        
 @fiche.autocomplete("game")
 async def fiche_autocomplete(interaction: discord.Interaction, current: str):
     current_lower = current.lower().strip()
@@ -176,44 +201,28 @@ async def ask(interaction: discord.Interaction, game_name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout de la demande : {str(e)}", ephemeral=True)
 
+# Mise à jour de la commande de suppression de problème
 @bot.tree.command(name="supprdemande", description="Supprime une demande de jeu ou un problème signalé (ADMIN)")
 @commands.has_permissions(administrator=True)
 async def supprdemande(interaction: discord.Interaction, name: str, type: str):
-    """
-    Supprime une demande ou un problème.
-
-    Utilisation :
-    /supprdemande "Nom du jeu" "demande"    -> Supprime la demande de jeu.
-    /supprdemande "Nom du jeu" "probleme"   -> Supprime le problème signalé pour ce jeu.
-    """
+    """Supprime une demande ou un problème et informe le salon général si un problème est résolu."""
     type_clean = type.strip().lower()
-    if type_clean not in ["demande", "probleme"]:
-        await interaction.response.send_message("❌ Type invalide. Utilisez 'demande' ou 'probleme'.", ephemeral=True)
-        return
-
     try:
-        if type_clean == "demande":
-            cursor.execute("SELECT * FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
-            entry = cursor.fetchone()
-            if entry:
-                cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
-                conn.commit()
-                await interaction.response.send_message(f"🗑️ La demande pour **{name}** a été supprimée avec succès.")
-            else:
-                await interaction.response.send_message(f"❌ Aucune demande trouvée pour **{name}**.", ephemeral=True)
-        else:  # type_clean == "probleme"
-            cursor.execute("SELECT * FROM game_problems WHERE LOWER(game) = %s", (name.lower(),))
-            entry = cursor.fetchone()
-            if entry:
-                cursor.execute("DELETE FROM game_problems WHERE LOWER(game) = %s", (name.lower(),))
-                conn.commit()
-                await interaction.response.send_message(f"🗑️ Le problème signalé pour **{name}** a été supprimé avec succès.")
-            else:
-                await interaction.response.send_message(f"❌ Aucun problème trouvé pour **{name}**.", ephemeral=True)
+        if type_clean == "probleme":
+            cursor.execute("DELETE FROM game_problems WHERE LOWER(game) = %s RETURNING game", (name.lower(),))
+            deleted_game = cursor.fetchone()
+            conn.commit()
+            if deleted_game:
+                general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
+                if general_channel:
+                    await general_channel.send(f"✅ **Le problème sur {deleted_game[0].capitalize()} a été résolu !**")
+            await interaction.response.send_message(f"✅ Le problème sur **{name.capitalize()}** a été supprimé avec succès.")
+        else:
+            await interaction.response.send_message("❌ Type invalide. Utilisez 'probleme'.", ephemeral=True)
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression : {str(e)}", ephemeral=True)
-
+        
 @supprdemande.autocomplete("type")
 async def supprdemande_type_autocomplete(interaction: discord.Interaction, current: str):
     """Propose 'demande' ou 'probleme' pour le paramètre 'type'."""
@@ -270,7 +279,6 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
     Exemple : /modifjeu "Halo Infinite" "prix" "39.99 €"
     """
     try:
-        # Préparation du nom pour la recherche (en minuscules)
         name_clean = name.strip().lower()
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{name_clean}%",))
         jeu = cursor.fetchone()
@@ -278,7 +286,7 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
             await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name}'.", ephemeral=True)
             return
 
-        # Dictionnaire de correspondance pour les champs autorisés
+        # Champs autorisés
         mapping = {
             "nom": "nom",
             "name": "nom",
@@ -289,8 +297,10 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
             "duree": "duration",
             "cloud": "cloud_available",
             "youtube": "youtube_link",
-            "steam": "steam_link"
+            "steam": "steam_link",
+            "commentaire": "commentaire"  # Ajout de la modification du commentaire ✅
         }
+
         champ_clean = champ.strip().lower()
         if champ_clean not in mapping:
             await interaction.response.send_message(
@@ -299,7 +309,7 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
             )
             return
 
-        # Mise à jour du champ dans la base de données
+        # Mise à jour du champ
         actual_field = mapping[champ_clean]
         query = f"UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s"
         cursor.execute(query, (nouvelle_valeur, f"%{name_clean}%"))
@@ -603,32 +613,40 @@ async def listejeux(interaction: discord.Interaction):
 # Nouvelle commande publique: /probleme
 ############################################
 
-@bot.tree.command(name="probleme", description="Signale un problème pour un jeu")
-async def probleme(interaction: discord.Interaction, game: str, message: str):
-    """
-    Signale un problème pour un jeu.
-    
-    Utilisation : /probleme "Nom du jeu" "Votre message"
-    """
+# Commande pour signaler un problème
+@bot.tree.command(name="probleme", description="Signale un problème pour un jeu ou un problème technique")
+async def probleme(interaction: discord.Interaction, game: str, message: str, type_probleme: str):
+    """Signale un problème pour un jeu ou un problème technique."""
     try:
         game_clean = game.strip().lower()
-        # Vérifier que le jeu existe dans la table games
+        type_clean = type_probleme.strip().lower()
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{game_clean}%",))
         jeu = cursor.fetchone()
         if not jeu:
             await interaction.response.send_message(f"❌ Aucun jeu trouvé correspondant à '{game}'.", ephemeral=True)
             return
-        # Enregistrer le problème dans la table game_problems
-        cursor.execute(
-            "INSERT INTO game_problems (user_id, username, game, message) VALUES (%s, %s, %s, %s)",
-            (interaction.user.id, interaction.user.name, jeu[0], message)
-        )
-        conn.commit()
-        await interaction.response.send_message(f"✅ Problème signalé pour '{jeu[0].capitalize()}' avec le message : {message}")
+
+        if type_clean == "jeu":
+            cursor.execute(
+                "INSERT INTO game_problems (user_id, username, game, message) VALUES (%s, %s, %s, %s)",
+                (interaction.user.id, interaction.user.name, jeu[0], message)
+            )
+            conn.commit()
+            general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
+            if general_channel:
+                await general_channel.send(f"🚨 **{jeu[0].capitalize()}** a un problème ! (Signalisé par {interaction.user.name} à {interaction.created_at.strftime('%d/%m/%Y %H:%M')})")
+            await interaction.response.send_message(f"✅ Problème signalé pour '{jeu[0].capitalize()}' : {message}")
+        elif type_clean == "technique":
+            tech_channel = discord.utils.get(interaction.guild.text_channels, name="mrbalooum")
+            if tech_channel:
+                await tech_channel.send(f"🔧 **Problème technique signalé !** \n **Jeu :** {jeu[0].capitalize()} \n **Utilisateur :** {interaction.user.name} \n **Message :** {message} \n **Date :** {interaction.created_at.strftime('%d/%m/%Y %H:%M')}")
+            await interaction.response.send_message(f"✅ Problème technique signalé pour '{jeu[0].capitalize()}'")
+        else:
+            await interaction.response.send_message("❌ Type de problème invalide. Utilisez 'jeu' ou 'technique'.", ephemeral=True)
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la signalisation du problème : {str(e)}", ephemeral=True)
-
+        
 @probleme.autocomplete("game")
 async def probleme_autocomplete(interaction: discord.Interaction, current: str):
     """Propose des noms de jeux présents dans la bibliothèque pour le paramètre 'game'."""
