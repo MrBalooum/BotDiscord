@@ -319,16 +319,28 @@ async def supprdemande(interaction: discord.Interaction, name: str, type: str):
                 general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
                 tech_channel = discord.utils.get(interaction.guild.text_channels, name="mrbalooum")
 
+                # 🔍 Trouver le salon personnel de l'utilisateur
+                user_channel = None
+                for channel in interaction.guild.text_channels:
+                    if channel.topic and f"ID: {user_id}" in channel.topic:
+                        user_channel = channel
+                        break
+                
                 if "(Problème technique)" in game_name:
-                    # ✅ Problème technique -> MP à l’utilisateur
+                    # ✅ Problème technique -> Message dans le salon personnel
                     cleaned_game_name = game_name.replace("(Problème technique)", "").strip()
-                    user = await bot.fetch_user(user_id)
-                    if user:
-                        await user.send(f"🎉 **Ton problème technique sur {cleaned_game_name} a été résolu !**")
+                    if user_channel:
+                        await user_channel.send(f"🎉 **Ton problème technique sur {cleaned_game_name} a été résolu !**")
+                    else:
+                        await general_channel.send(f"🎉 **Problème technique sur {cleaned_game_name} résolu !**")
+
                 else:
-                    # ✅ Problème de jeu -> Message dans #général et #mrbalooum
-                    if general_channel:
+                    # ✅ Problème de jeu -> Message dans le salon personnel
+                    if user_channel:
+                        await user_channel.send(f"✅ **Le problème sur {game_name} a été résolu !**")
+                    elif general_channel:
                         await general_channel.send(f"✅ **Le problème sur {game_name} a été résolu !**")
+
                     if tech_channel:
                         await tech_channel.send(f"🎮 **{game_name} (Problème jeu résolu)**\n**Date :** {interaction.created_at.strftime('%d/%m/%Y %H:%M')}")
 
@@ -353,6 +365,11 @@ async def supprdemande(interaction: discord.Interaction, name: str, type: str):
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la suppression : {str(e)}", ephemeral=True)
+    if user_channel:
+    print(f"📌 Salon personnel trouvé pour {user_id}: {user_channel.name}")
+else:
+    print(f"⚠️ Aucun salon personnel trouvé pour {user_id}, envoi dans #général")
+
 
 @supprdemande.autocomplete("type")
 async def supprdemande_type_autocomplete(interaction: discord.Interaction, current: str):
