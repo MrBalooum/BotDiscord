@@ -642,7 +642,9 @@ GUILD_ID = 1343310341655892028  # ID de ton serveur
     default_member_permissions=Permissions(administrator=True)
 
 )
-    
+
+@app_commands.default_permissions(administrator=True)  # Définition des permissions ici
+@commands.has_permissions(administrator=True)
 async def ajoutjeux(interaction: discord.Interaction, games: str):
     """
     Ajoute plusieurs jeux à partir d'un bloc de texte.
