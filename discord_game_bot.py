@@ -7,6 +7,8 @@ import random
 import re
 from discord import app_commands
 
+
+
 # Vérification et installation de requests si manquant
 try:
     import requests
@@ -24,6 +26,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 DATABASE_URL = os.getenv("DATABASE_URL")
 conn = psycopg2.connect(DATABASE_URL, sslmode="require", client_encoding="UTF8")
 cursor = conn.cursor()
+
 
 # Création (ou mise à jour) de la table "games"
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
@@ -46,6 +49,10 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS user_favorites (
     game TEXT,
     UNIQUE(user_id, game)
 )''')
+conn.commit()
+
+# Mettre "Aucun" dans la colonne commentaire pour tous les jeux déjà en base
+cursor.execute("UPDATE games SET commentaire = 'Aucun' WHERE commentaire IS NULL OR commentaire = ''")
 conn.commit()
 
 # S'assurer que la colonne "date_ajout" existe (si elle n'existe pas, on l'ajoute)
@@ -312,25 +319,19 @@ async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
 
 @bot.tree.command(name="modifjeu", description="Modifie un champ d'un jeu (ADMIN)")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
-async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str):
+async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str = ""):
     """
     Modifie un seul champ d'un jeu existant.
     
-    Utilisation : /modifjeu "Nom du jeu" "Champ" "Nouvelle valeur"
-    Exemple : /modifjeu "Halo Infinite" "prix" "39.99 €"
+    Si le champ modifié est "commentaire" et que rien n'est saisi, le jeu aura "Aucun" comme valeur.
     """
     try:
         name_clean = name.strip().lower()
-        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s", (f"%{name_clean}%",))
-        jeu = cursor.fetchone()
-        if not jeu:
-            await interaction.response.send_message(f"❌ Aucun jeu trouvé avec le nom '{name}'.", ephemeral=True)
-            return
+        champ_clean = champ.strip().lower()
 
-        # Champs autorisés
+        # Liste des champs autorisés pour modification
         mapping = {
             "nom": "nom",
-            "name": "nom",
             "sortie": "release_date",
             "prix": "price",
             "type": "type",
@@ -339,28 +340,28 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
             "cloud": "cloud_available",
             "youtube": "youtube_link",
             "steam": "steam_link",
-            "commentaire": "commentaire"  # Ajout de la modification du commentaire ✅
+            "commentaire": "commentaire"
         }
 
-        champ_clean = champ.strip().lower()
         if champ_clean not in mapping:
             await interaction.response.send_message(
-                f"❌ Le champ '{champ}' n'est pas valide. Champs autorisés : {', '.join(mapping.keys())}",
+                f"❌ Champ invalide. Utilisez : {', '.join(mapping.keys())}.",
                 ephemeral=True
             )
             return
 
-        # Mise à jour du champ
+        # Si le champ est "commentaire" et que l'utilisateur ne met rien, on le remplace par "Aucun"
+        new_value = nouvelle_valeur.strip() if nouvelle_valeur else "Aucun"
+
         actual_field = mapping[champ_clean]
-        query = f"UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s"
-        cursor.execute(query, (nouvelle_valeur, f"%{name_clean}%"))
+        cursor.execute(f"UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s", (new_value, f"%{name_clean}%"))
         conn.commit()
-        await interaction.response.send_message(
-            f"✅ Jeu '{jeu[0].capitalize()}' mis à jour : {champ} → {nouvelle_valeur}"
-        )
+        
+        await interaction.response.send_message(f"✅ {champ.capitalize()} de **{name.capitalize()}** mis à jour : {new_value}")
+
     except Exception as e:
         conn.rollback()
-        await interaction.response.send_message(f"❌ Erreur lors de la modification du jeu : {str(e)}", ephemeral=True)
+        await interaction.response.send_message(f"❌ Erreur lors de la modification : {str(e)}", ephemeral=True)
 
 @modifjeu.autocomplete("name")
 async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
@@ -477,22 +478,32 @@ async def unfav_autocomplete(interaction: discord.Interaction, current: str):
 
 @bot.tree.command(name="ajoutjeu", description="Ajoute un jeu (ADMIN)")
 @commands.has_permissions(administrator=True)
-async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: str, price: str, types: str, duration: str, cloud_available: str, youtube_link: str, steam_link: str):
-    """Ajoute un nouveau jeu et envoie la fiche dans le salon 'général'."""
+async def ajoutjeu(
+    interaction: discord.Interaction, 
+    name: str, release_date: str, price: str, types: str, 
+    duration: str, cloud_available: str, youtube_link: str, steam_link: str, 
+    commentaire: str = "Aucun"
+):
+    """Ajoute un nouveau jeu avec un commentaire et envoie la fiche dans le salon 'général'."""
     try:
         cursor.execute(
-            "INSERT INTO games (nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
-            (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link)
+            "INSERT INTO games (nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link, commentaire) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)", 
+            (name.lower(), release_date, price, types.lower(), duration, cloud_available, youtube_link, steam_link, commentaire)
         )
         save_database()
+        
+        # Supprime la demande associée s'il y en avait une
         cursor.execute("DELETE FROM game_requests WHERE LOWER(game_name) = %s", (name.lower(),))
         conn.commit()
+        
+        # Récupérer les infos du jeu ajouté
         cursor.execute("""
-            SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link 
+            SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link, commentaire
             FROM games 
             WHERE LOWER(nom) = %s
         """, (name.lower(),))
         game_info = cursor.fetchone()
+
         embed = discord.Embed(title=f"🎮 {game_info[0].capitalize()}", color=discord.Color.blue())
         embed.add_field(name="📅 Date de sortie", value=game_info[1], inline=False)
         embed.add_field(name="💰 Prix", value=game_info[2], inline=False)
@@ -501,10 +512,14 @@ async def ajoutjeu(interaction: discord.Interaction, name: str, release_date: st
         embed.add_field(name="☁️ Cloud disponible", value=game_info[5], inline=False)
         embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({game_info[6]})", inline=False)
         embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({game_info[7]})", inline=False)
+        embed.add_field(name="ℹ️ Commentaire", value=game_info[8], inline=False)
+
         await interaction.response.send_message(f"✅ **{name.capitalize()}** ajouté avec succès et retiré des demandes !")
+        
         general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
         if general_channel:
             await general_channel.send(f"📣 **{name.capitalize()}** vient d'être ajouté !", embed=embed)
+
     except psycopg2.IntegrityError:
         conn.rollback()
         await interaction.response.send_message(f"❌ Ce jeu existe déjà dans la base de données : **{name}**", ephemeral=True)
@@ -675,15 +690,36 @@ async def probleme(interaction: discord.Interaction, game: str, message: str, ty
             conn.commit()
             general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
             if general_channel:
-                await general_channel.send(f"🚨 **{jeu[0].capitalize()}** a un problème ! (Signalisé par {interaction.user.name} à {interaction.created_at.strftime('%d/%m/%Y %H:%M')})")
-            await interaction.response.send_message(f"✅ Problème signalé pour '{jeu[0].capitalize()}' : {message}")
+                await general_channel.send(
+                    f"🚨 **{jeu[0].capitalize()}** a un problème !\n"
+                    f"📢 **Signalé par :** {interaction.user.name}\n"
+                    f"📝 **Message :** {message}\n"
+                    f"📅 **Date :** {interaction.created_at.strftime('%d/%m/%Y %H:%M')}"
+                )
+            await interaction.response.send_message(f"✅ Problème signalé pour '{jeu[0].capitalize()}'.", ephemeral=True)
+
         elif type_clean == "technique":
+            cursor.execute(
+                "INSERT INTO game_problems (user_id, username, game, message) VALUES (%s, %s, %s, %s)",
+                (interaction.user.id, interaction.user.name, jeu[0], message)
+            )
+            conn.commit()
+
             tech_channel = discord.utils.get(interaction.guild.text_channels, name="mrbalooum")
             if tech_channel:
-                await tech_channel.send(f"🔧 **Problème technique signalé !** \n **Jeu :** {jeu[0].capitalize()} \n **Utilisateur :** {interaction.user.name} \n **Message :** {message} \n **Date :** {interaction.created_at.strftime('%d/%m/%Y %H:%M')}")
-            await interaction.response.send_message(f"✅ Problème technique signalé pour '{jeu[0].capitalize()}'")
+                await tech_channel.send(
+                    f"🔧 **Problème technique signalé !**\n"
+                    f"🎮 **Jeu :** {jeu[0].capitalize()}\n"
+                    f"👤 **Utilisateur :** {interaction.user.name}\n"
+                    f"📝 **Message :** {message}\n"
+                    f"📅 **Date :** {interaction.created_at.strftime('%d/%m/%Y %H:%M')}"
+                )
+            
+            await interaction.response.send_message(f"✅ Problème technique signalé pour '{jeu[0].capitalize()}'.", ephemeral=True)
+
         else:
             await interaction.response.send_message("❌ Type de problème invalide. Utilisez 'jeu' ou 'technique'.", ephemeral=True)
+
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la signalisation du problème : {str(e)}", ephemeral=True)
