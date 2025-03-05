@@ -637,6 +637,8 @@ GUILD_ID = 1343310341655892028  # ID de ton serveur
     guild=Object(id=GUILD_ID),
     default_member_permissions=Permissions(administrator=True)
 
+)
+
 import asyncio
 import re
 
@@ -644,7 +646,6 @@ import re
     name="ajoutjeux",
     description="Ajoute plusieurs jeux à la fois (ADMIN)",
     guild=Object(id=GUILD_ID)
-)
 async def ajoutjeux(interaction: discord.Interaction, games: str):
     """
     Ajoute plusieurs jeux à partir d'un bloc de texte.
