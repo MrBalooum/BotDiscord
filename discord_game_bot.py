@@ -185,6 +185,35 @@ async def fiche_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
+@bot.event
+async def on_member_join(member):
+    guild = member.guild
+
+    # Définir les permissions : seul le membre peut voir et écrire dans le salon
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+        member: discord.PermissionOverwrite(view_channel=True, send_messages=True)
+    }
+
+    # Créer le salon textuel portant le nom du membre
+    user_channel = await guild.create_text_channel(name=member.name, overwrites=overwrites)
+
+    # Liste des commandes autorisées pour l'utilisateur
+    commandes = ("/fiche | /Listejeux | /Dernier | /Style | "
+                 "/Proposejeu | /Proposejeutype | /Type | /Ask | "
+                 "/Fav | /Favori | /Unfav | /Probleme")
+    
+    # Message de bienvenue personnalisé
+    welcome_message = (
+        f"Bienvenue {member.mention} sur ton salon personnel !\n"
+        "Voici les commandes dont tu disposes pour profiter pleinement du serveur :\n"
+        f"{commandes}\n\n"
+        "N'oublie pas de consulter le salon #rules pour connaître les règles du serveur.\n"
+        "Bienvenue et amuse-toi bien !"
+    )
+
+    # Envoyer le message dans le salon personnel
+    await user_channel.send(welcome_message)
 
 @bot.tree.command(name="ask", description="Demande l'ajout d'un jeu")
 async def ask(interaction: discord.Interaction, game_name: str):
