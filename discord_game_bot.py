@@ -393,7 +393,6 @@ async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
     guild=discord.Object(id=GUILD_ID)  # Remplace GUILD_ID par l'ID de ton serveur
 )
 @app_commands.default_permissions(administrator=True)  # Définit les permissions
-@commands.has_permissions(administrator=True)  # Vérifie les permissions en plus
 async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str = ""):
     """
     Modifie un seul champ d'un jeu existant.
@@ -402,47 +401,66 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
     try:
         name_clean = name.strip().lower()
         champ_clean = champ.strip().lower()
+
+        # Dictionnaire de correspondance des champs
         mapping = {
             "nom": "nom",
             "sortie": "release_date",
             "prix": "price",
             "type": "type",
             "durée": "duration",
-            "duree": "duration",
             "cloud": "cloud_available",
             "youtube": "youtube_link",
             "steam": "steam_link",
             "commentaire": "commentaire"
         }
+
         if champ_clean not in mapping:
             await interaction.response.send_message(
                 f"❌ Champ invalide. Utilisez : {', '.join(mapping.keys())}.",
                 ephemeral=True
             )
             return
+
         new_value = nouvelle_valeur.strip() if nouvelle_valeur else "Aucun"
         actual_field = mapping[champ_clean]
+
         cursor.execute(f"UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s", (new_value, f"%{name_clean}%"))
         conn.commit()
+
         await interaction.response.send_message(f"✅ {champ.capitalize()} de **{name.capitalize()}** mis à jour : {new_value}")
+
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la modification : {str(e)}", ephemeral=True)
 
-modifjeu.default_member_permissions = Permissions(administrator=True)
 
+# ✅ Correction de l'Autocomplétion pour "name"
 @modifjeu.autocomplete("name")
 async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
     """Propose des noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
     current_lower = current.strip().lower()
+    
+    if not current_lower:
+        return []  # Si l'utilisateur n'a rien tapé, ne retourne rien
+
     try:
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
         results = cursor.fetchall()
-        return [app_commands.Choice(name=row[0].capitalize(), value=row[0]) for row in results]
+
+        print(f"🔎 Résultats Autocomplete: {results}")  # Debug: voir ce qui est retourné
+
+        return [
+            app_commands.Choice(name=row[0].capitalize(), value=row[0])
+            for row in results if row[0]  # Vérifie que row[0] n'est pas vide
+        ]
     except Exception as e:
         conn.rollback()
+        print(f"❌ Erreur Autocomplete (name) : {str(e)}")  # Debugging
         return []
-        
+
+
+# ✅ Correction de l'Autocomplétion pour "champ"
 @modifjeu.autocomplete("champ")
 async def modifjeu_champ_autocomplete(interaction: discord.Interaction, current: str):
     """Autocomplétion pour le champ à modifier."""
@@ -457,8 +475,9 @@ async def modifjeu_champ_autocomplete(interaction: discord.Interaction, current:
         "steam": "steam_link",
         "commentaire": "commentaire"
     }
-    
+
     current_lower = current.strip().lower()
+    
     return [
         app_commands.Choice(name=key.capitalize(), value=value)
         for key, value in options.items()
