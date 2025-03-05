@@ -119,21 +119,10 @@ def save_database():
 #         COMMANDES SLASH
 ############################################
 
-@bot.tree.command(name="test_autocomplete", description="Test d'autocomplétion")
-async def test_autocomplete(interaction: discord.Interaction, game: str):
-    await interaction.response.send_message(f"Jeu sélectionné : {game}")
-
-@test_autocomplete.autocomplete("game")
-async def test_autocomplete_autocomplete(interaction: discord.Interaction, current: str):
-    """Renvoie une liste de jeux"""
-    current_lower = current.strip().lower()
-    try:
-        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
-        results = cursor.fetchall()
-        return [app_commands.Choice(name=row[0].capitalize(), value=row[0]) for row in results]
-    except Exception as e:
-        conn.rollback()
-        return []
+@bot.tree.command(name="admin_test", description="Commande de test pour admin")
+@commands.has_permissions(administrator=True)
+async def admin_test(interaction: discord.Interaction):
+    await interaction.response.send_message("✅ Commande admin test OK", ephemeral=True)
 
 from discord import app_commands
 
@@ -406,22 +395,18 @@ async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
 @bot.tree.command(
     name="modifjeu",
     description="Modifie un champ d'un jeu (ADMIN)",
-    guild=discord.Object(id=GUILD_ID)
+    guild=discord.Object(id=GUILD_ID)  # Remplace GUILD_ID par l'ID de ton serveur
 )
-@app_commands.default_permissions(administrator=True)
-@commands.has_permissions(administrator=True)
-
-@app_commands.default_permissions(administrator=True)  # Définit les permissions
+@app_commands.default_permissions(administrator=True)  # Limite l'UTILISATION de la commande, mais pas l'autocomplétion
 async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str = ""):
-    """
-    Modifie un seul champ d'un jeu existant.
-    Si le champ modifié est "commentaire" et que rien n'est saisi, le jeu aura "Aucun" comme valeur.
-    """
+    """Modifie un jeu, réservé aux admins."""
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Vous n'avez pas la permission d'utiliser cette commande.", ephemeral=True)
+        return
+
     try:
         name_clean = name.strip().lower()
         champ_clean = champ.strip().lower()
-
-        # Dictionnaire de correspondance des champs
         mapping = {
             "nom": "nom",
             "sortie": "release_date",
@@ -433,56 +418,31 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
             "steam": "steam_link",
             "commentaire": "commentaire"
         }
-
         if champ_clean not in mapping:
-            await interaction.response.send_message(
-                f"❌ Champ invalide. Utilisez : {', '.join(mapping.keys())}.",
-                ephemeral=True
-            )
+            await interaction.response.send_message(f"❌ Champ invalide. Utilisez : {', '.join(mapping.keys())}.", ephemeral=True)
             return
 
         new_value = nouvelle_valeur.strip() if nouvelle_valeur else "Aucun"
         actual_field = mapping[champ_clean]
-
         cursor.execute(f"UPDATE games SET {actual_field} = %s WHERE LOWER(nom) LIKE %s", (new_value, f"%{name_clean}%"))
         conn.commit()
-
         await interaction.response.send_message(f"✅ {champ.capitalize()} de **{name.capitalize()}** mis à jour : {new_value}")
 
     except Exception as e:
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la modification : {str(e)}", ephemeral=True)
 
-
 # ✅ Correction de l'Autocomplétion pour "name"
 @modifjeu.autocomplete("name")
 async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
-    """Propose des noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
+    """Autocomplétion pour récupérer les noms de jeux."""
     current_lower = current.strip().lower()
-
-    print(f"🔎 Autocomplétion appelée avec '{current_lower}'")
-
-    if not current_lower:
-        print("❌ Aucun texte saisi, retour d'une liste vide.")
-        return []
-
     try:
         cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
         results = cursor.fetchall()
-
-        print(f"✅ Résultats SQL : {results}")
-
-        suggestions = [
-            app_commands.Choice(name=row[0].capitalize(), value=row[0])
-            for row in results if row[0]  # Vérifie que row[0] n'est pas vide
-        ]
-
-        print(f"📌 Suggestions envoyées à Discord : {suggestions}")
-        return suggestions
-
+        return [app_commands.Choice(name=row[0].capitalize(), value=row[0]) for row in results]
     except Exception as e:
         conn.rollback()
-        print(f"❌ Erreur SQL lors de l'autocomplétion : {str(e)}")
         return []
 
 # ✅ Correction de l'Autocomplétion pour "champ"
