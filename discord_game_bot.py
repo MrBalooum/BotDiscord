@@ -378,6 +378,29 @@ async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
+        
+@modifjeu.autocomplete("champ")
+async def modifjeu_champ_autocomplete(interaction: discord.Interaction, current: str):
+    """Autocomplétion pour le champ à modifier."""
+    options = {
+        "nom": "nom",
+        "sortie": "release_date",
+        "prix": "price",
+        "type": "type",
+        "durée": "duration",
+        "cloud": "cloud_available",
+        "youtube": "youtube_link",
+        "steam": "steam_link",
+        "commentaire": "commentaire"
+    }
+    
+    current_lower = current.strip().lower()
+    return [
+        app_commands.Choice(name=key.capitalize(), value=value)
+        for key, value in options.items()
+        if current_lower in key
+    ]
+
 
 ############################################
 # Nouvelles commandes pour les favoris
@@ -717,8 +740,10 @@ async def probleme(interaction: discord.Interaction, game: str, message: str, ty
 @probleme.autocomplete("type_probleme")
 async def probleme_autocomplete(interaction: discord.Interaction, current: str):
     """Autocomplétion pour 'game' et 'type_probleme'."""
-    
-    param_name = interaction.data["options"][0]["name"]  # Vérifie quel paramètre on complète
+
+    param_name = None
+    if interaction.data and "options" in interaction.data:
+        param_name = interaction.data["options"][-1]["name"]  # Récupère le paramètre en cours
 
     if param_name == "game":
         current_lower = current.strip().lower()
@@ -729,9 +754,12 @@ async def probleme_autocomplete(interaction: discord.Interaction, current: str):
         except Exception as e:
             conn.rollback()
             return []
-    
+
     elif param_name == "type_probleme":
-        return [app_commands.Choice(name="Jeu", value="jeu"), app_commands.Choice(name="Technique", value="technique")]
+        return [
+            app_commands.Choice(name="Jeu", value="jeu"),
+            app_commands.Choice(name="Technique", value="technique")
+        ]
 
 ############################################
 # Modification de /demandes pour afficher 2 messages
