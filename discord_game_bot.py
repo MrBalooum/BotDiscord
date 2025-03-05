@@ -723,7 +723,7 @@ async def probleme(interaction: discord.Interaction, game: str, message: str, ty
             tech_channel = discord.utils.get(interaction.guild.text_channels, name="mrbalooum")
 
             if general_channel:
-                await general_channel.send(f"🚨 **{jeu_nom}** a un problème ! (Signalé par {interaction.user.name} à {date_heure})")
+                await general_channel.send(f"🚨 **{jeu_nom} (Problème jeu)** ! (Signalé par {interaction.user.name} à {date_heure})")
 
             if tech_channel:
                 await tech_channel.send(f"🎮 **{jeu_nom} (Problème jeu)**\n**Utilisateur :** {interaction.user.name}\n**Message :** {message}\n**Date :** {date_heure}")
@@ -731,6 +731,13 @@ async def probleme(interaction: discord.Interaction, game: str, message: str, ty
             await interaction.response.send_message(f"✅ Problème signalé pour **{jeu_nom}** : {message}")
 
         elif type_clean == "technique":
+            # 🔥 **Ajout dans game_problems pour qu’il apparaisse dans /demandes et /supprdemande**
+            cursor.execute(
+                "INSERT INTO game_problems (user_id, username, game, message) VALUES (%s, %s, %s, %s)",
+                (interaction.user.id, interaction.user.name, f"{jeu_nom} (Problème technique)", message)
+            )
+            conn.commit()
+
             tech_channel = discord.utils.get(interaction.guild.text_channels, name="mrbalooum")
             if tech_channel:
                 await tech_channel.send(f"🔧 **{jeu_nom} (Problème technique)**\n**Utilisateur :** {interaction.user.name}\n**Message :** {message}\n**Date :** {date_heure}")
