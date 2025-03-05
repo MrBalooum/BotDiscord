@@ -269,6 +269,7 @@ async def ask(interaction: discord.Interaction, game_name: str):
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de l'ajout de la demande : {str(e)}", ephemeral=True)
 
+GUILD_ID = 1343310341655892028
 @bot.tree.command(
     name="supprdemande",
     description="Supprime une demande de jeu ou un problème signalé (ADMIN)",
