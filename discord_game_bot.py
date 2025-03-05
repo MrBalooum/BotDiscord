@@ -185,79 +185,98 @@ async def fiche_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
-import asyncio  # Assure que asyncio est bien importé
+        
+import asyncio
 
 @bot.event
 async def on_member_join(member):
     guild = member.guild
 
-    # 🔹 Vérification du rôle "UserAccess"
+    print(f"🔹 Nouveau membre : {member.name}")
+
+    # Vérification du rôle UserAccess
     role = discord.utils.get(guild.roles, name="UserAccess")
     if role is None:
         role = await guild.create_role(name="UserAccess")
+        print("✅ Rôle UserAccess créé")
 
-    # 🔹 Ajouter le rôle au membre
+    # Ajouter le rôle au membre
     await member.add_roles(role)
-    
-    # 🔹 Définition du nom du salon
+    print(f"✅ Rôle UserAccess ajouté à {member.name}")
+
+    # Définition du nom du salon
     channel_name = member.name.lower().replace(" ", "-")
 
-    # 🔹 Vérifier si le salon existe déjà et le supprimer
+    # Vérifier si un salon avec ce nom existe déjà et le supprimer
     existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
     if existing_channel:
+        print(f"🗑️ Suppression de l'ancien salon {existing_channel.name}")
         await existing_channel.delete(reason="Création d'un nouveau salon personnel.")
 
-    # 🔹 Définition des permissions du salon
+    # Définition des permissions du salon
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
         member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
         role: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True)
     }
 
-    # 🔹 Création du salon textuel
-    user_channel = await guild.create_text_channel(
-        name=channel_name,
-        overwrites=overwrites,
-        topic=f"Salon personnel de {member.name}. ID: {member.id}"
-    )
+    # Création du salon textuel
+    try:
+        user_channel = await guild.create_text_channel(
+            name=channel_name,
+            overwrites=overwrites,
+            topic=f"Salon personnel de {member.name}. ID: {member.id}"
+        )
+        print(f"✅ Salon créé : {user_channel.name}")
+    except Exception as e:
+        print(f"❌ Erreur lors de la création du salon : {e}")
+        return  # On arrête ici si la création a échoué
 
-    print(f"✅ Salon créé : {user_channel.name}")  # Log pour voir si le salon est bien créé
-
-    # 🔹 Attendre que Discord enregistre bien le salon avant d'envoyer le message
+    # Attendre 2 secondes pour éviter un bug de Discord
     await asyncio.sleep(2)
 
-    # 🔹 Liste des commandes disponibles
-    commandes = ("/fiche | /Listejeux | /Dernier | /Style | "
-                 "/Proposejeu | /Proposejeutype | /Type | /Ask | "
-                 "/Fav | /Favori | /Unfav | /Probleme")
+    # Test des permissions pour voir si le bot peut envoyer un message
+    if user_channel.permissions_for(guild.me).send_messages:
+        print(f"📢 Le bot peut envoyer des messages dans {user_channel.name}")
+    else:
+        print(f"🚨 Le bot N'A PAS la permission d'envoyer des messages dans {user_channel.name} !")
 
-    # 🔹 Message de bienvenue
+    # Message de bienvenue
     welcome_message = (
         f"Bienvenue {member.mention} sur ton salon personnel !\n"
         "Voici les commandes dont tu disposes pour profiter pleinement du serveur :\n"
-        f"{commandes}\n\n"
+        "/fiche | /Listejeux | /Dernier | /Style | "
+        "/Proposejeu | /Proposejeutype | /Type | /Ask | "
+        "/Fav | /Favori | /Unfav | /Probleme\n\n"
         "N'oublie pas de consulter le salon #rules pour connaître les règles du serveur.\n"
         "Bienvenue et amuse-toi bien !"
     )
 
     try:
         await user_channel.send(welcome_message)
-        print(f"✅ Message de bienvenue envoyé à {member.name}")
+        print(f"✅ Message de bienvenue envoyé à {member.name} dans {user_channel.name}")
     except Exception as e:
-        print(f"❌ Erreur lors de l'envoi du message : {e}")
+        print(f"❌ Erreur lors de l'envoi du message de bienvenue : {e}")
+
 
 @bot.event
 async def on_member_remove(member):
     guild = member.guild
 
-    # 🔹 Recherche du salon du membre en parcourant les salons
+    print(f"🔹 {member.name} a quitté le serveur")
+
+    # Recherche du salon basé sur l'ID dans le topic
     for channel in guild.text_channels:
         if channel.topic and f"ID: {member.id}" in channel.topic:
+            print(f"🔍 Salon trouvé pour suppression : {channel.name}")
             try:
                 await channel.delete(reason=f"Le membre {member.name} a quitté le serveur")
-                print(f"🗑️ Salon supprimé : {channel.name}")
+                print(f"🗑️ Salon {channel.name} supprimé")
             except Exception as e:
-                print(f"❌ Erreur lors de la suppression du salon : {e}")
+                print(f"❌ Erreur lors de la suppression du salon {channel.name} : {e}")
+            return  # On arrête la boucle dès qu'on trouve le bon salon
+
+    print(f"⚠️ Aucun salon trouvé pour {member.name}")
 
 @bot.tree.command(name="ask", description="Demande l'ajout d'un jeu")
 async def ask(interaction: discord.Interaction, game_name: str):
