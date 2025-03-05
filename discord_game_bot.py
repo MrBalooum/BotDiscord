@@ -389,9 +389,9 @@ async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
 
 @bot.tree.command(
     name="modifjeu",
-    description="Modifie un champ d'un jeu (ADMIN)",
-    guild=discord.Object(id=GUILD_ID)  # Remplace GUILD_ID par l'ID de ton serveur
+    description="Modifie un champ d'un jeu"
 )
+
 @app_commands.default_permissions(administrator=True)  # Définit les permissions
 async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str = ""):
     """
