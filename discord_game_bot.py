@@ -119,6 +119,22 @@ def save_database():
 #         COMMANDES SLASH
 ############################################
 
+@bot.tree.command(name="test_autocomplete", description="Test d'autocomplétion")
+async def test_autocomplete(interaction: discord.Interaction, game: str):
+    await interaction.response.send_message(f"Jeu sélectionné : {game}")
+
+@test_autocomplete.autocomplete("game")
+async def test_autocomplete_autocomplete(interaction: discord.Interaction, current: str):
+    """Renvoie une liste de jeux"""
+    current_lower = current.strip().lower()
+    try:
+        cursor.execute("SELECT nom FROM games WHERE LOWER(nom) LIKE %s ORDER BY nom ASC LIMIT 25", (f"%{current_lower}%",))
+        results = cursor.fetchall()
+        return [app_commands.Choice(name=row[0].capitalize(), value=row[0]) for row in results]
+    except Exception as e:
+        conn.rollback()
+        return []
+
 from discord import app_commands
 
 # Commande pour afficher la fiche d'un jeu
