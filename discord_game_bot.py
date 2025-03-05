@@ -645,8 +645,8 @@ GUILD_ID = 1343310341655892028  # ID de ton serveur
     guild=Object(id=GUILD_ID)
 )
 
-import asyncio
-import re
+    import asyncio
+    import re
 
 async def ajoutjeux(interaction: discord.Interaction, games: str):
     """
