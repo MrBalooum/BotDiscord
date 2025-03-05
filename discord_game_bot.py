@@ -220,20 +220,25 @@ async def supprdemande(interaction: discord.Interaction, name: str, type: str):
             problem_data = cursor.fetchone()
 
             if problem_data:
-                user_id, game_name = problem_data
+                user_id, game_name = problem_data 
                 cursor.execute("DELETE FROM game_problems WHERE LOWER(game) = %s", (name.lower(),))
                 conn.commit()
 
-                if game_name == "Problème Technique":
-                    user = await bot.fetch_user(user_id)
-                    if user:
-                        await user.send(f"✅ **Votre problème technique a été résolu !**")
-                else:
-                    general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
-                    if general_channel:
-                        await general_channel.send(f"✅ **Le problème sur {game_name.capitalize()} a été résolu !**")
+                general_channel = discord.utils.get(interaction.guild.text_channels, name="général")
+                tech_channel = discord.utils.get(interaction.guild.text_channels, name="mrbalooum")
 
-                await interaction.response.send_message(f"✅ Le problème sur **{game_name.capitalize()}** a été supprimé avec succès.")
+                if "(Problème technique)" in game_name:
+                    # ✅ Problème technique -> Message dans #général
+                    if general_channel:
+                        await general_channel.send(f"🎉 **Ton problème technique sur {game_name} a été résolu !**")
+                else:
+                    # ✅ Problème de jeu -> Message dans #général et #mrbalooum
+                    if general_channel:
+                        await general_channel.send(f"✅ **Le problème sur {game_name} a été résolu !**")
+                    if tech_channel:
+                        await tech_channel.send(f"🎮 **{game_name} (Problème jeu résolu)**\n**Date :** {interaction.created_at.strftime('%d/%m/%Y %H:%M')}")
+
+                await interaction.response.send_message(f"✅ Le problème sur **{game_name}** a été supprimé avec succès.")
 
             else:
                 await interaction.response.send_message(f"❌ Aucun problème trouvé pour **{name.capitalize()}**.", ephemeral=True)
