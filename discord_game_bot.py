@@ -303,7 +303,7 @@ async def give_admin(interaction: discord.Interaction):
     description="Supprime une demande de jeu ou un problème signalé (ADMIN)"
 )
 @app_commands.default_permissions(administrator=True)
-async def supprdemande(interaction: discord.Interaction, name: str, type: str):
+async def supprdemande(interaction: discord.Interaction, name: str, type: str):  # ✅ `async def`
     print(f"📌 /supprdemande appelé par {interaction.user} avec name={name} et type={type}")
     await interaction.response.send_message(f"Test OK : {name}, {type}", ephemeral=True)
     """Supprime une demande ou un problème et informe les utilisateurs de la résolution."""
