@@ -207,6 +207,7 @@ async def on_member_join(member):
         guild.owner: discord.PermissionOverwrite(view_channel=True, send_messages=True)  # L'admin peut écrire
     }
 
+   try:
     # 🔹 Créer le salon textuel
     user_channel = await guild.create_text_channel(
         name=channel_name,
@@ -216,10 +217,10 @@ async def on_member_join(member):
 
     await user_channel.send(f"Bienvenue {member.mention} ! Seul toi, l'admin et le bot pouvons écrire ici.")
     print(f"✅ Salon personnel créé : {user_channel.name}")
-    print(f"✅ Salon créé : {user_channel.name}")
-    except Exception as e:
-        print(f"❌ Erreur lors de la création du salon : {e}")
-        return  # On arrête ici si la création a échoué
+
+except Exception as e:  # ✅ Bien aligné avec `try`
+    print(f"❌ Erreur lors de la création du salon : {e}")
+    return  # ✅ Bien aligné avec `except`
 
     # Attendre 2 secondes pour éviter un bug de Discord
     await asyncio.sleep(2)
