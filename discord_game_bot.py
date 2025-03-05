@@ -627,6 +627,8 @@ ajoutjeu.default_member_permissions = Permissions(administrator=True)
 # NOUVELLE COMMANDE POUR AJOUTER PLUSIEURS JEUX
 ############################################
 
+import asyncio
+import re
 from discord import Permissions, Object
 
 GUILD_ID = 1343310341655892028  # ID de ton serveur
@@ -638,16 +640,7 @@ GUILD_ID = 1343310341655892028  # ID de ton serveur
     default_member_permissions=Permissions(administrator=True)
 
 )
-
-@bot.tree.command(
-    name="ajoutjeux",
-    description="Ajoute plusieurs jeux à la fois (ADMIN)",
-    guild=Object(id=GUILD_ID)
-)
-
-    import asyncio
-    import re
-
+    
 async def ajoutjeux(interaction: discord.Interaction, games: str):
     """
     Ajoute plusieurs jeux à partir d'un bloc de texte.
