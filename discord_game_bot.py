@@ -633,18 +633,17 @@ import asyncio
 import re
 from discord import Permissions, Object
 
-GUILD_ID = 1343310341655892028  # ID de ton serveur
+from discord import app_commands
+
+GUILD_ID = 1343310341655892028  # Remplace par l'ID de ton serveur
 
 @bot.tree.command(
-    name="ajoutjeux",
-    description="Ajoute des jeux (ADMIN)",
-    guild=Object(id=GUILD_ID),
-    default_member_permissions=Permissions(administrator=True)
-
+    name="supprdemande",
+    description="Supprime une demande de jeu ou un problème signalé (ADMIN)",
+    guild=discord.Object(id=GUILD_ID)  # Utilise discord.Object au lieu de Object
 )
-
-@app_commands.default_permissions(administrator=True)  # Définition des permissions ici
-@commands.has_permissions(administrator=True)
+@app_commands.default_permissions(administrator=True)  # Définit les permissions ici
+@commands.has_permissions(administrator=True)  # Vérifie les permissions en plus
 async def ajoutjeux(interaction: discord.Interaction, games: str):
     """
     Ajoute plusieurs jeux à partir d'un bloc de texte.
