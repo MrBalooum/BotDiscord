@@ -244,13 +244,9 @@ async def on_member_join(member):
     # Message de bienvenue
     welcome_message = (
         f"🔹Bienvenue {member.mention} sur ton salon personnel !\n"
-        "🔹Voici les commandes dont tu disposes pour profiter pleinement du serveur :\n"
-        "/fiche | /Listejeux | /Dernier | /Style | "
-        "/Proposejeu | /Proposejeutype | /Type | /Ask | "
-        "/Fav | /Favori | /Unfav | /Probleme\n"
         "🔹La modération va te donner accès à toutes les commandes listées sous peu.\n"
         "🔹N'oublie pas de consulter le salon #rules pour connaître les règles du serveur.\n"
-        "🔹Bienvenue et amuse-toi bien !🎉"
+        "🔹Bienvenue et amuse-toi bien ! 🎉"
     )
 
     try:
