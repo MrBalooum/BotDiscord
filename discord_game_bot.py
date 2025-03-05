@@ -639,13 +639,15 @@ GUILD_ID = 1343310341655892028  # ID de ton serveur
 
 )
 
-import asyncio
-import re
-
 @bot.tree.command(
     name="ajoutjeux",
     description="Ajoute plusieurs jeux à la fois (ADMIN)",
     guild=Object(id=GUILD_ID)
+
+
+import asyncio
+import re
+
 async def ajoutjeux(interaction: discord.Interaction, games: str):
     """
     Ajoute plusieurs jeux à partir d'un bloc de texte.
