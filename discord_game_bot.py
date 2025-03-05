@@ -104,7 +104,7 @@ conn.commit()
 @bot.event
 async def on_ready():
     try:
-        await bot.tree.sync()  # Synchronisation des commandes slash
+        await bot.tree.sync()  # Resynchronise toutes les commandes
         print("✅ Commandes slash synchronisées avec Discord !")
     except Exception as e:
         print(f"❌ Erreur de synchronisation des commandes slash : {e}")
@@ -280,6 +280,24 @@ GUILD_ID = 1343310341655892028
     description="Supprime une demande de jeu ou un problème signalé (ADMIN)",
     guild=Object(id=GUILD_ID)
 )
+@bot.tree.command(name="give_admin", description="Ajoute le rôle admin au propriétaire du serveur")
+async def give_admin(interaction: discord.Interaction):
+    """Donne le rôle Admin au propriétaire du serveur."""
+    guild = interaction.guild
+    owner = guild.owner
+
+    if interaction.user.id != owner.id:
+        await interaction.response.send_message("❌ Seul le propriétaire du serveur peut exécuter cette commande.", ephemeral=True)
+        return
+
+    # Vérifie si un rôle admin existe
+    role = discord.utils.get(guild.roles, name="Admin")
+    if not role:
+        role = await guild.create_role(name="Admin", permissions=discord.Permissions(administrator=True))
+    
+    await owner.add_roles(role)
+    await interaction.response.send_message("✅ Rôle Admin ajouté au propriétaire du serveur !")
+
 async def supprdemande(interaction: discord.Interaction, name: str, type: str):
     """Supprime une demande ou un problème et informe les utilisateurs de la résolution."""
     type_clean = type.strip().lower()
