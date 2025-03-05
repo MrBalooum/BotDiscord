@@ -362,24 +362,28 @@ async def supprdemande_type_autocomplete(interaction: discord.Interaction, curre
 
 @supprdemande.autocomplete("name")
 async def supprdemande_name_autocomplete(interaction: discord.Interaction, current: str):
-    """Autocomplétion des jeux ayant des problèmes signalés."""
+    """Autocomplétion des noms de jeux ayant des problèmes signalés ou des demandes."""
     current_lower = current.strip().lower()
+
     try:
+        # Récupérer les problèmes et les demandes qui matchent avec la saisie de l'utilisateur
         cursor.execute("""
-            SELECT DISTINCT game FROM game_problems 
-            WHERE LOWER(game) LIKE %s 
-            ORDER BY game ASC 
-            LIMIT 25
-        """, (f"%{current_lower}%",))
+            SELECT DISTINCT game FROM game_problems WHERE LOWER(game) LIKE %s
+            UNION
+            SELECT DISTINCT game_name FROM game_requests WHERE LOWER(game_name) LIKE %s
+            ORDER BY game ASC LIMIT 25
+        """, (f"%{current_lower}%", f"%{current_lower}%"))
+        
         results = cursor.fetchall()
 
         if not results:
             return []
 
+        # Formater les résultats pour Discord
         return [app_commands.Choice(name=row[0].capitalize(), value=row[0]) for row in results]
 
     except Exception as e:
-        conn.rollback()
+        print(f"❌ Erreur lors de l'autocomplétion : {e}")
         return []
 
 @bot.tree.command(name="supprjeu", description="Supprime un jeu (ADMIN)")
