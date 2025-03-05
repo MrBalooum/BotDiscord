@@ -229,9 +229,10 @@ async def supprdemande(interaction: discord.Interaction, name: str, type: str):
 
                 if "(Problème technique)" in game_name:
                     # ✅ Problème technique -> MP à l’utilisateur
+                    cleaned_game_name = game_name.replace("(Problème technique)", "").strip()
                     user = await bot.fetch_user(user_id)
                     if user:
-                        await user.send(f"🎉 **Ton problème technique sur {game_name} a été résolu !**")
+                        await user.send(f"🎉 **Ton problème technique sur {cleaned_game_name} a été résolu !**")
                 else:
                     # ✅ Problème de jeu -> Message dans #général et #mrbalooum
                     if general_channel:
