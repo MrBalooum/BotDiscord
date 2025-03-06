@@ -248,7 +248,6 @@ async def on_member_join(member):
     welcome_message = (
         f"🔹Bienvenue {member.mention} sur ton salon personnel !\n"
         "🔹Ici, tu peux utiliser les commandes pour consulter les jeux de la bibliothèque, ajouter des jeux en favori, faire des demandes d'ajout et signaler des problèmes.\n"
-        "🔹N'oublie pas de consulter le salon #rules pour connaître les règles du serveur.\n"
         "🔹N'oublie pas de consulter le salon #infos pour connaître les règles et les infos a savoir sur l'utilisation du serveur.\n"
         "🔹Bienvenue et amuse-toi bien ! 🎉"
     )
