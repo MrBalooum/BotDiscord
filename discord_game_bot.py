@@ -101,12 +101,16 @@ conn.commit()
 
 @bot.event
 async def on_ready():
-    try:
-        await bot.tree.sync()  # Synchronisation des commandes slash
-        print("✅ Commandes slash synchronisées avec Discord !")
-    except Exception as e:
-        print(f"❌ Erreur de synchronisation des commandes slash : {e}")
-    print(f"🤖 Bot connecté en tant que {bot.user}")
+    print(f"✅ Bot connecté en tant que {bot.user}")
+    
+    if bot.user.name != "Clank 2.0":
+        try:
+            await bot.user.edit(username="Clank 2.0")
+            print("✅ Nom du bot mis à jour !")
+        except discord.errors.HTTPException as e:
+            print(f"❌ Impossible de changer le nom : {e}")
+    
+    await bot.change_presence(activity=discord.Game(name="Disponible !"))
 
 def save_database():
     """Sauvegarde immédiate des changements dans PostgreSQL."""
