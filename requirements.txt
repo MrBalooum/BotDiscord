@@ -2,7 +2,7 @@ discord
 asyncio
 python-dotenv
 psycopg2-binary
-openai
+google-generativeai==0.3.2
 vosk
 sounddevice
 numpy
