@@ -6,21 +6,12 @@ import os
 import random
 import re
 from discord import app_commands
-from discord.ext import tasks
-import datetime
-import speech_recognition as sr
-from gtts import gTTS
+from discord.ext import commands
+import psycopg2
+import os
 
-# Installation des dépendances système
-os.system("apt-get update && apt-get install -y portaudio19-dev")
-
-# Vérification et installation de requests si manquant
-try:
-    import requests
-except ModuleNotFoundError:
-    import subprocess
-    subprocess.run(["pip", "install", "requests"])
-    import requests
+# Ne JAMAIS utiliser apt-get dans un script Python. 
+# Faites ça dans le Dockerfile ou via Nix.
 
 # Configuration du bot
 TOKEN = os.getenv("TOKEN")
@@ -29,10 +20,10 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Connexion à PostgreSQL
 DATABASE_URL = os.getenv("DATABASE_URL")
-conn = psycopg2.connect(DATABASE_URL, sslmode="require")  # Retiré client_encoding (paramètre inutile)
+conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 cursor = conn.cursor()
 
-# Création (ou mise à jour) de la table "games"
+# Création de la table
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
     id SERIAL PRIMARY KEY,
     nom TEXT UNIQUE,
