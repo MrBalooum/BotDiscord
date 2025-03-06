@@ -108,10 +108,6 @@ async def on_ready():
         print(f"❌ Erreur de synchronisation des commandes slash : {e}")
     print(f"🤖 Bot connecté en tant que {bot.user}")
 
-    if not clear_support_channel.is_running():
-        clear_support_channel.start()
-    print(f"✅ Bot connecté en tant que {bot.user}")
-
 def save_database():
     """Sauvegarde immédiate des changements dans PostgreSQL."""
     conn.commit()
