@@ -7,6 +7,7 @@ import random
 import re
 from discord import app_commands
 from discord.ext import tasks
+import datetime
 
 # Vérification et installation de requests si manquant
 try:
@@ -111,7 +112,8 @@ async def on_ready():
         except discord.errors.HTTPException as e:
             print(f"❌ Impossible de changer le nom : {e}")
 
-
+    propose_jeu_auto.start()
+    print("✅ Tâche automatique activée !")
 
 def save_database():
     """Sauvegarde immédiate des changements dans PostgreSQL."""
@@ -1127,5 +1129,52 @@ async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 if TOKEN is None:
     raise ValueError("❌ La variable d'environnement DISCORD_BOT_TOKEN n'est pas définie sur Railway !")
+
+# Liste des jeux déjà proposés pour éviter les doublons
+jeux_deja_proposes = set()
+
+@tasks.loop(time=[datetime.time(hour=18, minute=0, tzinfo=datetime.timezone.utc)])
+async def propose_jeu_auto():
+    """Propose un jeu aléatoire les lundis, mercredis et vendredis à 18h sans doublon."""
+    maintenant = datetime.datetime.now().weekday()
+
+    if maintenant in [0, 2, 4]:  # 0 = Lundi, 2 = Mercredi, 4 = Vendredi
+        cursor.execute("""
+            SELECT nom, release_date, price, type, duration, cloud_available, youtube_link, steam_link, commentaire
+            FROM games
+            WHERE LOWER(nom) NOT IN %s
+            ORDER BY RANDOM() LIMIT 1
+        """, (tuple(jeux_deja_proposes) if jeux_deja_proposes else ('',),))
+        jeu = cursor.fetchone()
+
+        if jeu:
+            jeu_nom, release_date, price, type_jeu, duration, cloud, youtube, steam, commentaire = jeu
+            jeu_nom = jeu_nom.capitalize()
+            jeux_deja_proposes.add(jeu_nom.lower())  # Ajouter le jeu à la liste des proposés
+
+            # Création de l'embed avec les infos du jeu
+            embed = discord.Embed(title=f"🎮 Suggestion de Jeu : {jeu_nom}", color=discord.Color.blue())
+            embed.add_field(name="📅 Date de sortie", value=release_date, inline=False)
+            embed.add_field(name="💰 Prix", value=price, inline=False)
+            embed.add_field(name="🎮 Type", value=type_jeu.capitalize(), inline=False)
+            embed.add_field(name="⏳ Durée", value=duration, inline=False)
+            embed.add_field(name="☁️ Cloud disponible", value=cloud, inline=False)
+            embed.add_field(name="▶️ Gameplay YouTube", value=f"[Voir ici]({youtube})", inline=False)
+            embed.add_field(name="🛒 Page Steam", value=f"[Voir sur Steam]({steam})", inline=False)
+            if commentaire:
+                embed.add_field(name="ℹ️ Commentaire", value=commentaire, inline=False)
+
+            # Envoi du message dans le salon
+            channel = bot.get_channel(#ID_DU_SALON)
+            if channel:
+                await channel.send(f"🎲 **Découvrez un jeu de la bibliothèque aujourd'hui !**", embed=embed)
+            else:
+                print("❌ Erreur : Salon introuvable.")
+
+        # Réinitialisation de la liste si tous les jeux ont été proposés
+        cursor.execute("SELECT COUNT(*) FROM games")
+        total_jeux = cursor.fetchone()[0]
+        if len(jeux_deja_proposes) >= total_jeux:
+            jeux_deja_proposes.clear()
 
 bot.run(TOKEN)
