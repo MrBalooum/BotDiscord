@@ -102,12 +102,6 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS game_problems (
 )''')
 conn.commit()
 
-# Ajout de la colonne "Commentaire" si elle n'existe pas
-cursor.execute("""
-    ALTER TABLE games ADD COLUMN IF NOT EXISTS commentaire TEXT
-""")
-conn.commit()
-
 @bot.event
 async def on_ready():
     print(f"✅ Bot connecté en tant que {bot.user}")
@@ -119,14 +113,6 @@ async def on_ready():
             print("✅ Nom du bot mis à jour !")
         except discord.errors.HTTPException as e:
             print(f"❌ Impossible de changer le nom : {e}")
-
-        try:
-            await bot.tree.sync()  # Synchronisation des commandes
-            print("✅ Commandes slash synchronisées !")
-        except Exception as e:
-            print(f"❌ Erreur de synchronisation des commandes : {e}")
-        print(f"🤖 Bot connecté en tant que {bot.user}")
-
 
 def save_database():
     """Sauvegarde immédiate des changements dans PostgreSQL."""
@@ -1099,27 +1085,7 @@ async def type_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
-
-@bot.tree.command(name="pp", description="Affiche la liste des jeux considérés comme des pépites")
-async def pp(interaction: discord.Interaction):
-    """Affiche tous les jeux ayant 'pepite' (sans accent) dans leur colonne commentaire."""
-    try:
-        cursor.execute("SELECT nom FROM games WHERE commentaire ILIKE '%pepite%'")
-        pepites = cursor.fetchall()
-
-        if not pepites:
-            await interaction.response.send_message("❌ Aucun jeu n'est encore marqué comme 'pepite'.", ephemeral=True)
-            return
-
-        pepite_list = "\n".join(f"• {row[0].capitalize()}" for row in pepites)
-        embed = discord.Embed(title="💎 Jeux Pepites", description=pepite_list, color=discord.Color.gold())
-
-        await interaction.response.send_message(embed=embed)
-
-    except Exception as e:
-        conn.rollback()
-        await interaction.response.send_message(f"❌ Erreur lors de la récupération des pepites : {str(e)}", ephemeral=True)
-
+        
 ############################################
 #         CLASSE DE PAGINATION
 ############################################
