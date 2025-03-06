@@ -10,6 +10,6 @@ gtts
 ffmpeg
 SpeechRecognition
 gTTS
+sounddevice
 pydub
 ffmpeg
-sounddevice
