@@ -435,7 +435,6 @@ async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
         conn.rollback()
         return []
 
-
 @bot.tree.command(name="modifjeu", description="Modifie un champ d'un jeu (ADMIN)")
 @app_commands.check(lambda interaction: interaction.user.guild_permissions.administrator)
 async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouvelle_valeur: str = ""):
@@ -462,6 +461,8 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
             "commentaire": "commentaire"
         }
 
+        print(f"Champ reçu : {champ_clean}")  # Debugging
+
         if champ_clean not in mapping:
             await interaction.response.send_message(
                 f"❌ Champ invalide. Utilisez : {', '.join(mapping.keys())}.",
@@ -482,6 +483,7 @@ async def modifjeu(interaction: discord.Interaction, name: str, champ: str, nouv
         conn.rollback()
         await interaction.response.send_message(f"❌ Erreur lors de la modification : {str(e)}", ephemeral=True)
 
+
 @modifjeu.autocomplete("name")
 async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
     """Propose des noms de jeux présents dans la bibliothèque pour le paramètre 'name'."""
@@ -494,26 +496,17 @@ async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
         conn.rollback()
         return []
 
+
 @modifjeu.autocomplete("champ")
 async def modifjeu_champ_autocomplete(interaction: discord.Interaction, current: str):
     """Autocomplétion pour le champ à modifier (en minuscule pour éviter les erreurs)."""
-    options = {
-        "nom": "nom",
-        "sortie": "release_date",
-        "prix": "price",
-        "type": "type",
-        "durée": "duration",
-        "cloud": "cloud_available",
-        "youtube": "youtube_link",
-        "steam": "steam_link",
-        "commentaire": "commentaire"
-    }
+    options = ["nom", "sortie", "prix", "type", "durée", "duree", "cloud", "youtube", "steam", "commentaire"]
 
     current_lower = current.strip().lower()
     return [
-        app_commands.Choice(name=key, value=value)  # 🔹 Garder "name" en minuscule
-        for key, value in options.items()
-        if current_lower in key
+        app_commands.Choice(name=option, value=option)  # 🔹 On garde la clé originale en value
+        for option in options
+        if current_lower in option
     ]
 
 ############################################
