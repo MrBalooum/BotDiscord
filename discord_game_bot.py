@@ -6,7 +6,7 @@ import os
 import random
 import re
 from discord import app_commands
-from openai import Openai
+from openai import OpenAI
 from discord.ext import tasks
 
 
