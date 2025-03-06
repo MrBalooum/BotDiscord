@@ -1133,12 +1133,11 @@ async def clear_support_channel():
     channel = bot.get_channel(SUPPORT_CHANNEL_ID)
 
     if channel:
-        # 🔹 Supprimer tous les messages du salon
         try:
-            await channel.purge()
-            print(f"🗑️ Salon #{channel.name} nettoyé avec succès !")
-
-            # 🔹 Envoyer un message de bienvenue après le nettoyage
+            # 🔹 Vérifier s'il y a des messages avant de faire le purge
+            deleted = await channel.purge()
+            
+            # 🔹 Toujours envoyer le message de bienvenue, même si rien n'a été supprimé
             await channel.send(
                 "**👋 Bienvenue dans le support technique !**\n"
                 "Je suis **Gamelist**, ton assistant dédié aux problèmes techniques.\n\n"
@@ -1149,11 +1148,11 @@ async def clear_support_channel():
                 "✅ Dépanner les **problèmes de connexion réseau**\n\n"
                 "❓ Pose-moi une question et je te répondrai avec mes connaissances techniques !"
             )
-            print("✅ Message de bienvenue envoyé après le nettoyage.")
+            print(f"✅ Salon #{channel.name} nettoyé ({len(deleted)} messages supprimés) et message de bienvenue envoyé.")
 
         except Exception as e:
             print(f"❌ Erreur lors du nettoyage du salon : {e}")
-
+            
 ############################################
 #         CLASSE DE PAGINATION
 ############################################
