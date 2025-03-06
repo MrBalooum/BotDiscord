@@ -1105,7 +1105,7 @@ SUPPORT_CHANNEL_ID = 1347146902172467293  # vérifie ton vrai ID ici
 # Fonction pour appeler OpenAI proprement
 def openai_response(user_message):
     response = openai_client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-3.5-turbo-0125",
         messages=[
             {"role": "system", "content": (
                 "Tu es Gamelist, assistant technique expert en NAS, stockage réseau, cloud gaming, "
