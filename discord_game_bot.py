@@ -1094,44 +1094,32 @@ async def type_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
-        
 
-# 🔑 Charge la clé API OpenAI depuis Railway
-OpenAI.api_key = os.getenv("OPENAI_API_KEY")
+bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
-SUPPORT_CHANNEL_ID = 1347146902172467293  # ID du salon #support-technique
+# 🔹 ID du salon #support-technique
+SUPPORT_CHANNEL_ID = 1347146902172467293  # Remplace avec l'ID exact de ton salon Discord
 
-def openai_response(user_message):
+# 🔹 Initialisation propre du client OpenAI via la clé d'environnement Railway
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# 🔹 Fonction d'appel OpenAI propre
+def generate_openai_response(prompt):
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": (
-                "Tu es un assistant technique spécialisé dans les NAS, le cloud gaming, la gestion des fichiers de jeux "
-                "et les problèmes réseau. Réponds simplement et clairement, même pour les débutants. "
+                "Tu es Gamelist, assistant technique expert en NAS, stockage réseau, cloud gaming, "
+                "fichiers de jeux et réseau. Réponds simplement, clairement et de manière accessible."
                 "Les jeux stockés sur un NAS ne passent PAS par Steam."
             )},
-            {"role": "user", "content": user_message}
+            {"role": "user", "content": prompt}
         ]
     )
     return response.choices[0].message.content
 
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
-
-    if message.channel.id == SUPPORT_CHANNEL_ID:
-        await message.channel.typing()
-        try:
-            response = openai_response(message.content)
-            await message.channel.send(response)
-        except Exception as e:
-            print(f"❌ Erreur OpenAI : {e}")
-            await message.channel.send("❌ Désolé, une erreur est survenue lors de la génération de ma réponse.")
-
-    await bot.process_commands(message)
-
-@tasks.loop(hours=48)  
+# 🔹 Tâche périodique pour nettoyer le salon
+@tasks.loop(hours=48)
 async def clear_support_channel():
     await bot.wait_until_ready()
     channel = bot.get_channel(SUPPORT_CHANNEL_ID)
@@ -1149,10 +1137,49 @@ async def clear_support_channel():
                 "✅ Dépanner les **problèmes de connexion réseau**\n\n"
                 "❓ Pose-moi une question et je te répondrai avec mes connaissances techniques !"
             )
-            print(f"✅ Salon #{channel.name} nettoyé ({len(deleted)} messages supprimés).")
+            print(f"✅ Salon #{channel.name} nettoyé ({len(deleted)} messages supprimés) et message de bienvenue envoyé.")
 
         except Exception as e:
             print(f"❌ Erreur lors du nettoyage du salon : {e}")
+
+clear_support_channel.start()
+
+# 🔹 Événement : réponse aux messages du salon support-technique
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+
+    if message.channel.id == SUPPORT_CHANNEL_ID:
+        await message.channel.typing()
+        try:
+            # 🔹 Génération de la réponse via OpenAI
+            client_openai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+            response = client_openai.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": (
+                        "Tu es Gamelist, assistant technique expert en NAS, stockage réseau, cloud gaming, "
+                        "fichiers de jeux et réseau. Réponds simplement, clairement et de manière accessible. "
+                        "Les jeux stockés sur un NAS ne passent PAS par Steam."
+                    )},
+                {"role": "user", "content": message.content}
+            ]
+            )
+
+            generated_message = response.choices[0].message.content
+            await message.channel.send(generated_message)
+
+        except Exception as e:
+            print(f"❌ Erreur OpenAI : {e}")
+            await message.channel.send("❌ Désolé, je n'ai pas pu répondre correctement.")
+
+    await bot.process_commands(message)
+
+# 🔹 Démarrage de la tâche périodique
+clear_support_channel.start()
+
+bot.run(os.environ["DISCORD_BOT_TOKEN"])
             
 ############################################
 #         CLASSE DE PAGINATION
