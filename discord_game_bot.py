@@ -102,7 +102,7 @@ conn.commit()
 @bot.event
 async def on_ready():
     print(f"✅ Bot connecté en tant que {bot.user}")
-    await bot.change_presence(activity=discord.Game(name="Surveille la base de jeux 🎮"))
+    await bot.change_presence(activity=discord.Game(name="Tetris 🎮"))
     
     if bot.user.name != "Clank 2.0":
         try:
