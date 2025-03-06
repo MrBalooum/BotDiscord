@@ -8,6 +8,8 @@ import re
 from discord import app_commands
 from discord.ext import tasks
 import datetime
+import speech_recognition as sr
+import pyttsx3
 
 # Vérification et installation de requests si manquant
 try:
@@ -102,6 +104,11 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS game_problems (
 )''')
 conn.commit()
 
+# Initialisation du moteur vocal
+engine = pyttsx3.init()
+engine.setProperty("rate", 150)  # Ajuste la vitesse de la voix
+engine.setProperty("voice", "english")  # Change la voix si besoin
+
 @bot.event
 async def on_ready():
     print(f"✅ Bot connecté en tant que {bot.user}")
@@ -113,6 +120,23 @@ async def on_ready():
             print("✅ Nom du bot mis à jour !")
         except discord.errors.HTTPException as e:
             print(f"❌ Impossible de changer le nom : {e}")
+
+    await bot.change_presence(activity=discord.Game(name="Assistant Vocal 🎤"))
+
+    # Trouver le salon vocal "Clank"
+    guild = discord.utils.get(bot.guilds)  # Récupère ton serveur
+    if guild:
+        channel = discord.utils.get(guild.voice_channels, name="Clank")
+        if channel:
+            if not guild.voice_client:  # Vérifie si le bot n'est pas déjà connecté
+                await channel.connect()
+                print(f"🎤 Connecté en vocal dans {channel.name}")
+            else:
+                print("🔊 Déjà connecté en vocal.")
+        else:
+            print("❌ Salon 'Clank' introuvable !")
+    else:
+        print("❌ Serveur introuvable !")
 
 def save_database():
     """Sauvegarde immédiate des changements dans PostgreSQL."""
@@ -1194,7 +1218,15 @@ async def process_voice_command(text):
     if voice_client and voice_client.is_connected():
         voice_client.play(discord.FFmpegPCMAudio("response.mp3"), after=lambda e: os.remove("response.mp3"))
 
-bot.run(TOKEN)
-
+@bot.event
+async def on_voice_state_update(member, before, after):
+    """ Vérifie si le bot a été déconnecté du vocal et le reconnecte """
+    if member == bot.user and before.channel and not after.channel:
+        await asyncio.sleep(5)  # Attendre un peu avant de se reconnecter
+        guild = before.channel.guild
+        channel = discord.utils.get(guild.voice_channels, name="Clank")
+        if channel:
+            await channel.connect()
+            print(f"🔄 Reconnecté dans {channel.name}")
 
 bot.run(TOKEN)
