@@ -1136,20 +1136,21 @@ async def clear_support_channel():
 
     if channel:
         try:
-            # 🔹 Vérifier s'il y a des messages avant de faire le purge
+            # 🔹 Purger les anciens messages du salon
             deleted = await channel.purge()
-            
-            # 🔹 Toujours envoyer le message de bienvenue, même si rien n'a été supprimé
+
+            # 🔹 Message statique après purge
             await channel.send(
                 "**👋 Bienvenue dans le support technique !**\n"
                 "Je suis **Gamelist**, ton assistant dédié aux problèmes techniques.\n\n"
                 "📌 **Ce que je peux faire :**\n"
-                "✅ Aider avec les **NAS et stockage réseau**\n"
+                "✅ Aider avec le **NAS et stockage réseau**\n"
                 "✅ Résoudre des problèmes de **cloud gaming**\n"
                 "✅ Diagnostiquer des **erreurs de fichiers de jeux**\n"
                 "✅ Dépanner les **problèmes de connexion réseau**\n\n"
                 "❓ Pose-moi une question et je te répondrai avec mes connaissances techniques !"
             )
+
             print(f"✅ Salon #{channel.name} nettoyé ({len(deleted)} messages supprimés) et message de bienvenue envoyé.")
 
         except Exception as e:
