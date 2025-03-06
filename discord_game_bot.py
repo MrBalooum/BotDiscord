@@ -19,6 +19,8 @@ except ModuleNotFoundError:
     subprocess.run(["pip", "install", "requests"])
     import requests
 
+os.system("apt-get update && apt-get install -y portaudio19-dev")
+
 # Configuration du bot
 TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
