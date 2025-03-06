@@ -1129,4 +1129,72 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 if TOKEN is None:
     raise ValueError("❌ La variable d'environnement DISCORD_BOT_TOKEN n'est pas définie sur Railway !")
 
+import discord
+import vosk
+import sys
+import queue
+import sounddevice as sd
+import json
+import os
+import gtts
+
+TOKEN = "TON_TOKEN_DISCORD"
+
+intents = discord.Intents.default()
+bot = discord.Client(intents=intents)
+voice_client = None  # Stocke la connexion vocale
+
+# Initialisation de Vosk (modèle de reconnaissance vocale)
+model = vosk.Model("vosk-model-fr")  # Assure-toi d’avoir téléchargé un modèle FR
+q = queue.Queue()
+
+def callback(indata, frames, time, status):
+    """Récupère l'audio et l'ajoute dans la file d'attente"""
+    if status:
+        print(status, file=sys.stderr)
+    q.put(bytes(indata))
+
+@bot.event
+async def on_ready():
+    print(f"✅ Bot connecté en tant que {bot.user}")
+    channel = discord.utils.get(bot.get_all_channels(), name="assistant-gaming")
+    if channel:
+        global voice_client
+        voice_client = await channel.connect()  # Rejoint le vocal
+
+        # Commence l'écoute
+        with sd.RawInputStream(samplerate=16000, blocksize=8000, dtype="int16",
+                               channels=1, callback=callback):
+            rec = vosk.KaldiRecognizer(model, 16000)
+            while True:
+                data = q.get()
+                if rec.AcceptWaveform(data):
+                    result = json.loads(rec.Result())
+                    text = result.get("text", "")
+                    if text:
+                        print(f"🎤 Reçu : {text}")
+                        await process_voice_command(text)
+
+async def process_voice_command(text):
+    """Analyse la phrase et répond"""
+    if "combien de temps" in text and "red dead" in text:
+        response = "La durée de vie de Red Dead Redemption 2 est d'environ 50 heures."
+    elif "quel jeu d'aventure" in text:
+        response = "Je te conseille The Legend of Zelda: Breath of the Wild."
+    else:
+        response = "Je n'ai pas compris, peux-tu reformuler ?"
+
+    print(f"💬 Réponse : {response}")
+
+    # Transformer en voix
+    tts = gtts.gTTS(response, lang="fr")
+    tts.save("response.mp3")
+
+    # Lire en vocal
+    if voice_client and voice_client.is_connected():
+        voice_client.play(discord.FFmpegPCMAudio("response.mp3"), after=lambda e: os.remove("response.mp3"))
+
+bot.run(TOKEN)
+
+
 bot.run(TOKEN)
