@@ -120,6 +120,14 @@ async def on_ready():
         except discord.errors.HTTPException as e:
             print(f"❌ Impossible de changer le nom : {e}")
 
+        try:
+            await bot.tree.sync()  # Synchronisation des commandes
+            print("✅ Commandes slash synchronisées !")
+        except Exception as e:
+            print(f"❌ Erreur de synchronisation des commandes : {e}")
+        print(f"🤖 Bot connecté en tant que {bot.user}")
+
+
 def save_database():
     """Sauvegarde immédiate des changements dans PostgreSQL."""
     conn.commit()
