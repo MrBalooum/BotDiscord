@@ -6,12 +6,16 @@ import os
 import random
 import re
 from discord import app_commands
-from discord.ext import commands
-import psycopg2
-import os
+from discord.ext import tasks
+import datetime
 
-# Ne JAMAIS utiliser apt-get dans un script Python. 
-# Faites ça dans le Dockerfile ou via Nix.
+# Vérification et installation de requests si manquant
+try:
+    import requests
+except ModuleNotFoundError:
+    import subprocess
+    subprocess.run(["pip", "install", "requests"])
+    import requests
 
 # Configuration du bot
 TOKEN = os.getenv("TOKEN")
@@ -20,10 +24,11 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Connexion à PostgreSQL
 DATABASE_URL = os.getenv("DATABASE_URL")
-conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+conn = psycopg2.connect(DATABASE_URL, sslmode="require", client_encoding="UTF8")
 cursor = conn.cursor()
 
-# Création de la table
+
+# Création (ou mise à jour) de la table "games"
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
     id SERIAL PRIMARY KEY,
     nom TEXT UNIQUE,
@@ -97,11 +102,6 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS game_problems (
 )''')
 conn.commit()
 
-def text_to_speech(text, filename="output.mp3"):
-    tts = gTTS(text=text, lang="fr")
-    tts.save(filename)
-    return filename
-
 @bot.event
 async def on_ready():
     print(f"✅ Bot connecté en tant que {bot.user}")
@@ -113,23 +113,6 @@ async def on_ready():
             print("✅ Nom du bot mis à jour !")
         except discord.errors.HTTPException as e:
             print(f"❌ Impossible de changer le nom : {e}")
-
-    await bot.change_presence(activity=discord.Game(name="Assistant Vocal 🎤"))
-
-    # Trouver le salon vocal "Clank"
-    guild = discord.utils.get(bot.guilds)  # Récupère ton serveur
-    if guild:
-        channel = discord.utils.get(guild.voice_channels, name="Clank")
-        if channel:
-            if not guild.voice_client:  # Vérifie si le bot n'est pas déjà connecté
-                await channel.connect()
-                print(f"🎤 Connecté en vocal dans {channel.name}")
-            else:
-                print("🔊 Déjà connecté en vocal.")
-        else:
-            print("❌ Salon 'Clank' introuvable !")
-    else:
-        print("❌ Serveur introuvable !")
 
 def save_database():
     """Sauvegarde immédiate des changements dans PostgreSQL."""
@@ -1145,84 +1128,5 @@ async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 if TOKEN is None:
     raise ValueError("❌ La variable d'environnement DISCORD_BOT_TOKEN n'est pas définie sur Railway !")
-
-import discord
-import vosk
-import sys
-import queue
-import sounddevice as sd
-import json
-import os
-from gtts import gTTS
-import asyncio
-
-TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-
-intents = discord.Intents.default()
-bot = discord.Client(intents=intents)
-voice_client = None  # Stocke la connexion vocale
-
-# Initialisation de Vosk (modèle de reconnaissance vocale)
-model = vosk.Model("vosk-model-fr")  # Assurez-vous d’avoir téléchargé un modèle FR
-q = queue.Queue()
-
-def callback(indata, frames, time, status):
-    """Récupère l'audio et l'ajoute dans la file d'attente"""
-    if status:
-        print(status, file=sys.stderr)
-    q.put(bytes(indata))
-
-@bot.event
-async def on_ready():
-    print(f"✅ Bot connecté en tant que {bot.user}")
-    channel = discord.utils.get(bot.get_all_channels(), name="Clank")
-    if channel:
-        global voice_client
-        voice_client = await channel.connect()  # Rejoint le vocal
-
-        # Commence l'écoute
-        with sd.RawInputStream(samplerate=16000, blocksize=8000, dtype="int16",
-                               channels=1, callback=callback):
-            rec = vosk.KaldiRecognizer(model, 16000)
-            while True:
-                data = q.get()
-                if rec.AcceptWaveform(data):
-                    result = json.loads(rec.Result())
-                    text = result.get("text", "")
-                    if text:
-                        print(f"🎤 Reçu : {text}")
-                        await process_voice_command(text)
-
-async def process_voice_command(text):
-    """Analyse la phrase et répond"""
-    if "combien de temps" in text and "red dead" in text:
-        response = "La durée de vie de Red Dead Redemption 2 est d'environ 50 heures."
-    elif "quel jeu d'aventure" in text:
-        response = "Je te conseille The Legend of Zelda: Breath of the Wild."
-    else:
-        response = "Je n'ai pas compris, peux-tu reformuler ?"
-
-    print(f"💬 Réponse : {response}")
-
-    # Transformer en voix
-    tts = gTTS(response, lang="fr")
-    tts.save("response.mp3")
-
-    # Lire en vocal
-    if voice_client and voice_client.is_connected():
-        voice_client.play(discord.FFmpegPCMAudio("response.mp3"), after=lambda e: os.remove("response.mp3"))
-
-@bot.event
-async def on_voice_state_update(member, before, after):
-    """ Vérifie si le bot a été déconnecté du vocal et le reconnecte """
-    if member == bot.user and before.channel and not after.channel:
-        await asyncio.sleep(5)  # Attendre un peu avant de se reconnecter
-        guild = before.channel.guild
-        channel = discord.utils.get(guild.voice_channels, name="Clank")
-        if channel:
-            await channel.connect()
-            print(f"🔄 Reconnecté dans {channel.name}")
-
-bot.run(TOKEN)
 
 bot.run(TOKEN)
