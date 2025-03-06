@@ -1088,6 +1088,9 @@ async def type_autocomplete(interaction: discord.Interaction, current: str):
         conn.rollback()
         return []
 
+import openai
+import os
+
 # 🔑 Clé API OpenAI (remplace par ta clé)
 openai.api_key = os.getenv("OPENAI_API_KEY")  # Charge la clé depuis Railway
 SUPPORT_CHANNEL_ID = 1347146902172467293  # ID du salon #support-technique
