@@ -107,8 +107,11 @@ async def on_ready():
         try:
             await bot.user.edit(username="Clank 2.0")
             print("✅ Nom du bot mis à jour !")
+            print(f"✅ Bot connecté en tant que {bot.user}")
+            await bot.change_presence(activity=discord.Game(name="Surveille la base de jeux 🎮"))
         except discord.errors.HTTPException as e:
             print(f"❌ Impossible de changer le nom : {e}")
+            
     
     await bot.change_presence(activity=discord.Game(name="Disponible !"))
 
