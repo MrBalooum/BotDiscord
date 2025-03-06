@@ -1201,4 +1201,8 @@ async def supprjeu_autocomplete(interaction: discord.Interaction, current: str):
         conn.rollback()
         return []
 
+TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+if TOKEN is None:
+    raise ValueError("❌ La variable d'environnement DISCORD_BOT_TOKEN n'est pas définie sur Railway !")
+
 bot.run(TOKEN)
