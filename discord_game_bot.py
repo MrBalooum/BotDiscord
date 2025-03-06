@@ -11,6 +11,9 @@ import datetime
 import speech_recognition as sr
 from gtts import gTTS
 
+apt-get update
+apt-get install -y portaudio19-dev
+
 # Vérification et installation de requests si manquant
 try:
     import requests
@@ -1162,16 +1165,17 @@ import queue
 import sounddevice as sd
 import json
 import os
-import gtts
+from gtts import gTTS
+import asyncio
 
-TOKEN = "TON_TOKEN_DISCORD"
+TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 intents = discord.Intents.default()
 bot = discord.Client(intents=intents)
 voice_client = None  # Stocke la connexion vocale
 
 # Initialisation de Vosk (modèle de reconnaissance vocale)
-model = vosk.Model("vosk-model-fr")  # Assure-toi d’avoir téléchargé un modèle FR
+model = vosk.Model("vosk-model-fr")  # Assurez-vous d’avoir téléchargé un modèle FR
 q = queue.Queue()
 
 def callback(indata, frames, time, status):
@@ -1183,7 +1187,7 @@ def callback(indata, frames, time, status):
 @bot.event
 async def on_ready():
     print(f"✅ Bot connecté en tant que {bot.user}")
-    channel = discord.utils.get(bot.get_all_channels(), name="assistant-gaming")
+    channel = discord.utils.get(bot.get_all_channels(), name="Clank")
     if channel:
         global voice_client
         voice_client = await channel.connect()  # Rejoint le vocal
@@ -1213,7 +1217,7 @@ async def process_voice_command(text):
     print(f"💬 Réponse : {response}")
 
     # Transformer en voix
-    tts = gtts.gTTS(response, lang="fr")
+    tts = gTTS(response, lang="fr")
     tts.save("response.mp3")
 
     # Lire en vocal
@@ -1230,5 +1234,7 @@ async def on_voice_state_update(member, before, after):
         if channel:
             await channel.connect()
             print(f"🔄 Reconnecté dans {channel.name}")
+
+bot.run(TOKEN)
 
 bot.run(TOKEN)
