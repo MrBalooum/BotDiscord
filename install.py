@@ -1,8 +1,5 @@
-import os
-
-# Mettre à jour les paquets et installer les dépendances
-os.system('apt-get update')
-os.system('apt-get install -y portaudio19-dev ffmpeg')
+import subprocess
+import sys
 
 # Installer les dépendances Python
-os.system('pip install discord.py gTTS vosk sounddevice')
+subprocess.check_call([sys.executable, "-m", "pip", "install", "discord.py", "gTTS", "vosk", "sounddevice"])
