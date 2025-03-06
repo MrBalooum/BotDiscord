@@ -1165,7 +1165,7 @@ async def propose_jeu_auto():
                 embed.add_field(name="ℹ️ Commentaire", value=commentaire, inline=False)
 
             # Envoi du message dans le salon
-            channel = bot.get_channel(#ID_DU_SALON)
+            channel = bot.get_channel(1347244577832173578)
             if channel:
                 await channel.send(f"🎲 **Découvrez un jeu de la bibliothèque aujourd'hui !**", embed=embed)
             else:
