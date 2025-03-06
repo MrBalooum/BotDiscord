@@ -7,6 +7,8 @@ import random
 import re
 from discord import app_commands
 import openai
+from discord.ext import tasks
+
 
 
 
