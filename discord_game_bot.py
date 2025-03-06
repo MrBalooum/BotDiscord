@@ -1088,6 +1088,37 @@ async def type_autocomplete(interaction: discord.Interaction, current: str):
         conn.rollback()
         return []
 
+# 🔑 Clé API OpenAI (remplace par ta clé)
+openai.api_key = os.getenv("OPENAI_API_KEY")  # Charge la clé depuis Railway
+SUPPORT_CHANNEL_ID = 1347146902172467293  # ID du salon #support-technique
+
+openai.api_key = OPENAI_API_KEY
+
+@bot.event
+async def on_message(message):
+    # 🔹 Empêcher le bot de répondre à lui-même
+    if message.author == bot.user:
+        return
+
+    # 🔹 Vérifier si le message est envoyé dans le salon support-technique
+    if message.channel.id == SUPPORT_CHANNEL_ID:
+        await message.channel.typing()  # Simule que le bot écrit
+
+        # 🧠 Contexte spécialisé en dépannage (NAS, Cloud Gaming, réseau, fichiers de jeux)
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Tu es un assistant technique spécialisé dans les NAS, le cloud gaming, la gestion des fichiers de jeux et les problèmes réseau. Réponds de manière simple et accessible, même pour les non-experts. Les jeux stockés sur un NAS ne passent PAS par Steam."},
+                {"role": "user", "content": message.content}
+            ]
+        )
+
+        reply = response["choices"][0]["message"]["content"]
+        await message.channel.send(f"🤖 **Support AI :** {reply}")
+
+    # 🔹 Permet au bot de continuer à gérer les autres commandes
+    await bot.process_commands(message)
+
 ############################################
 #         CLASSE DE PAGINATION
 ############################################
