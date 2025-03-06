@@ -1097,7 +1097,7 @@ async def type_autocomplete(interaction: discord.Interaction, current: str):
         
 
 # 🔑 Charge la clé API OpenAI depuis Railway
-openai.api_key = os.getenv("OPENAI_API_KEY")
+OpenAI.api_key = os.getenv("OPENAI_API_KEY")
 
 SUPPORT_CHANNEL_ID = 1347146902172467293  # ID du salon #support-technique
 
