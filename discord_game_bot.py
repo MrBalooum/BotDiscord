@@ -110,9 +110,8 @@ async def on_ready():
             print("✅ Nom du bot mis à jour !")
         except discord.errors.HTTPException as e:
             print(f"❌ Impossible de changer le nom : {e}")
-            
-    
-    await bot.change_presence(activity=discord.Game(name="Disponible !"))
+
+
 
 def save_database():
     """Sauvegarde immédiate des changements dans PostgreSQL."""
