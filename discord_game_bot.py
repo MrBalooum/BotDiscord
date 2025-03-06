@@ -6,6 +6,7 @@ import os
 import random
 import re
 from discord import app_commands
+import openai
 
 
 
@@ -1087,9 +1088,6 @@ async def type_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
-
-import openai
-import os
 
 # 🔑 Clé API OpenAI (remplace par ta clé)
 openai.api_key = os.getenv("OPENAI_API_KEY")  # Charge la clé depuis Railway
