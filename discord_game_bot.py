@@ -110,6 +110,10 @@ async def on_ready():
         print(f"❌ Erreur de synchronisation des commandes slash : {e}")
     print(f"🤖 Bot connecté en tant que {bot.user}")
 
+    if not clear_support_channel.is_running():
+        clear_support_channel.start()
+    print(f"✅ Bot connecté en tant que {bot.user}")
+
 def save_database():
     """Sauvegarde immédiate des changements dans PostgreSQL."""
     conn.commit()
@@ -1119,6 +1123,36 @@ async def on_message(message):
 
     # 🔹 Permet au bot de continuer à gérer les autres commandes
     await bot.process_commands(message)
+
+# 🔹 ID du salon #support-technique (remplace avec le bon ID)
+SUPPORT_CHANNEL_ID = 1347146902172467293  
+
+@tasks.loop(hours=48)  # Exécute cette tâche toutes les 48h
+async def clear_support_channel():
+    await bot.wait_until_ready()  # Attend que le bot soit prêt
+    channel = bot.get_channel(SUPPORT_CHANNEL_ID)
+
+    if channel:
+        # 🔹 Supprimer tous les messages du salon
+        try:
+            await channel.purge()
+            print(f"🗑️ Salon #{channel.name} nettoyé avec succès !")
+
+            # 🔹 Envoyer un message de bienvenue après le nettoyage
+            await channel.send(
+                "**👋 Bienvenue dans le support technique !**\n"
+                "Je suis **Gamelist**, ton assistant dédié aux problèmes techniques.\n\n"
+                "📌 **Ce que je peux faire :**\n"
+                "✅ Aider avec les **NAS et stockage réseau**\n"
+                "✅ Résoudre des problèmes de **cloud gaming**\n"
+                "✅ Diagnostiquer des **erreurs de fichiers de jeux**\n"
+                "✅ Dépanner les **problèmes de connexion réseau**\n\n"
+                "❓ Pose-moi une question et je te répondrai avec mes connaissances techniques !"
+            )
+            print("✅ Message de bienvenue envoyé après le nettoyage.")
+
+        except Exception as e:
+            print(f"❌ Erreur lors du nettoyage du salon : {e}")
 
 ############################################
 #         CLASSE DE PAGINATION
