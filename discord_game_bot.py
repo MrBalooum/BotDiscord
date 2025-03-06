@@ -6,7 +6,7 @@ import os
 import random
 import re
 from discord import app_commands
-import openai
+from openai import Openai
 from discord.ext import tasks
 
 
@@ -1101,50 +1101,55 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 SUPPORT_CHANNEL_ID = 1347146902172467293  # ID du salon #support-technique
 
+def openai_response(user_message):
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": (
+                "Tu es un assistant technique spécialisé dans les NAS, le cloud gaming, la gestion des fichiers de jeux "
+                "et les problèmes réseau. Réponds simplement et clairement, même pour les débutants. "
+                "Les jeux stockés sur un NAS ne passent PAS par Steam."
+            )},
+            {"role": "user", "content": user_message}
+        ]
+    )
+    return response.choices[0].message.content
+
+@bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
 
-    if message.content.startswith("!ton_commande"):  # adapte selon ta commande
+    if message.channel.id == SUPPORT_CHANNEL_ID:
+        await message.channel.typing()
         try:
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "user", "content": message.content}
-                ]
-            )
-
-            generated_text = response.choices[0].message.content
-
-            await message.channel.send(generated_text)
-
+            response = openai_response(message.content)
+            await message.channel.send(response)
         except Exception as e:
-            print(f"Erreur OpenAI : {e}")
-            await message.channel.send("Erreur lors de la génération de la réponse.")
+            print(f"❌ Erreur OpenAI : {e}")
+            await message.channel.send("❌ Désolé, une erreur est survenue lors de la génération de ma réponse.")
 
-@tasks.loop(hours=48)  # Exécute cette tâche toutes les 48h
+    await bot.process_commands(message)
+
+@tasks.loop(hours=48)  
 async def clear_support_channel():
-    await bot.wait_until_ready()  # Attend que le bot soit prêt
+    await bot.wait_until_ready()
     channel = bot.get_channel(SUPPORT_CHANNEL_ID)
 
     if channel:
         try:
-            # 🔹 Purger les anciens messages du salon
             deleted = await channel.purge()
-
-            # 🔹 Message statique après purge
             await channel.send(
                 "**👋 Bienvenue dans le support technique !**\n"
                 "Je suis **Gamelist**, ton assistant dédié aux problèmes techniques.\n\n"
                 "📌 **Ce que je peux faire :**\n"
-                "✅ Aider avec le **NAS et stockage réseau**\n"
+                "✅ Aider avec les **NAS et stockage réseau**\n"
                 "✅ Résoudre des problèmes de **cloud gaming**\n"
                 "✅ Diagnostiquer des **erreurs de fichiers de jeux**\n"
                 "✅ Dépanner les **problèmes de connexion réseau**\n\n"
                 "❓ Pose-moi une question et je te répondrai avec mes connaissances techniques !"
             )
-
-            print(f"✅ Salon #{channel.name} nettoyé ({len(deleted)} messages supprimés) et message de bienvenue envoyé.")
+            print(f"✅ Salon #{channel.name} nettoyé ({len(deleted)} messages supprimés).")
 
         except Exception as e:
             print(f"❌ Erreur lors du nettoyage du salon : {e}")
