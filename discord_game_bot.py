@@ -6,11 +6,7 @@ import os
 import random
 import re
 from discord import app_commands
-from openai import OpenAI
 from discord.ext import tasks
-
-
-
 
 # Vérification et installation de requests si manquant
 try:
@@ -1094,75 +1090,6 @@ async def type_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
-
-bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
-
-# Initialisation du client OpenAI avec la clé d'environnement Railway
-openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-
-SUPPORT_CHANNEL_ID = 1347146902172467293  # vérifie ton vrai ID ici
-
-# Fonction pour appeler OpenAI proprement
-def openai_response(user_message):
-    response = openai_client.chat.completions.create(
-        model="gpt-3.5-turbo-0125",
-        messages=[
-            {"role": "system", "content": (
-                "Tu es Gamelist, assistant technique expert en NAS, stockage réseau, cloud gaming, "
-                "fichiers de jeux et réseau. Réponds simplement, clairement et accessible à tous. "
-                "Les jeux stockés sur un NAS ne passent PAS par Steam."
-            )},
-            {"role": "user", "content": user_message}
-        ]
-    )
-    return response.choices[0].message.content
-
-@tasks.loop(hours=48)
-async def clear_support_channel():
-    await bot.wait_until_ready()
-    channel = bot.get_channel(SUPPORT_CHANNEL_ID)
-
-    if channel:
-        try:
-            await channel.purge()
-            await channel.send(
-                "**👋 Bienvenue dans le support technique !**\n"
-                "Je suis **Gamelist**, ton assistant dédié aux problèmes techniques.\n\n"
-                "📌 **Ce que je peux faire :**\n"
-                "✅ Aider avec les **NAS et stockage réseau**\n"
-                "✅ Résoudre des problèmes de **cloud gaming**\n"
-                "✅ Diagnostiquer des **erreurs de fichiers de jeux**\n"
-                "✅ Dépanner les **problèmes de connexion réseau**\n\n"
-                "❓ Pose-moi une question et je te répondrai avec mes connaissances techniques !"
-            )
-            print(f"✅ Salon #{channel.name} nettoyé et message envoyé.")
-
-        except Exception as e:
-            print(f"❌ Erreur nettoyage : {e}")
-
-@bot.event
-async def on_ready():
-    print(f"✅ Connecté en tant que {bot.user}")
-    if not clear_support_channel.is_running():
-        clear_support_channel.start()
-
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
-
-    if message.channel.id == SUPPORT_CHANNEL_ID:
-        await message.channel.typing()
-        try:
-            generated_message = openai_response(message.content)
-            await message.channel.send(f"🤖 **Support AI :** {generated_message}")
-        except Exception as e:
-            print(f"❌ Erreur OpenAI : {e}")
-            await message.channel.send("❌ Désolé, une erreur est survenue lors de ma réponse.")
-
-    await bot.process_commands(message)
-
-bot.run(os.getenv("DISCORD_BOT_TOKEN"))
             
 ############################################
 #         CLASSE DE PAGINATION
