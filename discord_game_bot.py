@@ -1088,12 +1088,12 @@ async def type_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
+        
 
-# 🔑 Clé API OpenAI (remplace par ta clé)
-openai.api_key = os.getenv("OPENAI_API_KEY")  # Charge la clé depuis Railway
+# 🔑 Charge la clé API OpenAI depuis Railway
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
 SUPPORT_CHANNEL_ID = 1347146902172467293  # ID du salon #support-technique
-
-openai.api_key = OPENAI_API_KEY
 
 @bot.event
 async def on_message(message):
