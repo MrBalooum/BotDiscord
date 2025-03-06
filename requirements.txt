@@ -9,5 +9,4 @@ numpy
 gtts
 ffmpeg
 SpeechRecognition
-pyttsx3
-
+gTTS
