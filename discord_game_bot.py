@@ -493,7 +493,7 @@ async def modifjeu_autocomplete(interaction: discord.Interaction, current: str):
 
 @modifjeu.autocomplete("champ")
 async def modifjeu_champ_autocomplete(interaction: discord.Interaction, current: str):
-    """Autocomplétion pour le champ à modifier."""
+    """Autocomplétion pour le champ à modifier (en minuscule pour éviter les erreurs)."""
     options = {
         "nom": "nom",
         "sortie": "release_date",
@@ -508,11 +508,10 @@ async def modifjeu_champ_autocomplete(interaction: discord.Interaction, current:
 
     current_lower = current.strip().lower()
     return [
-        app_commands.Choice(name=key.capitalize(), value=value)
+        app_commands.Choice(name=key, value=value)  # 🔹 Garder "name" en minuscule
         for key, value in options.items()
         if current_lower in key
     ]
-
 
 ############################################
 # Nouvelles commandes pour les favoris
