@@ -3,3 +3,8 @@ asyncio
 python-dotenv
 psycopg2-binary
 openai
+vosk
+sounddevice
+numpy
+gtts
+ffmpeg
