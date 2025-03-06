@@ -188,7 +188,7 @@ async def fiche_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
-        
+
 import asyncio
 
 @bot.event
@@ -248,6 +248,7 @@ async def on_member_join(member):
     welcome_message = (
         f"🔹Bienvenue {member.mention} sur ton salon personnel !\n"
         "🔹Ici, tu peux utiliser les commandes pour consulter les jeux de la bibliothèque, ajouter des jeux en favori, faire des demandes d'ajout et signaler des problèmes.\n"
+        "🔹N'oublie pas de consulter le salon #rules pour connaître les règles du serveur.\n"
         "🔹N'oublie pas de consulter le salon #infos pour connaître les règles et les infos a savoir sur l'utilisation du serveur.\n"
         "🔹Bienvenue et amuse-toi bien ! 🎉"
     )
@@ -325,7 +326,7 @@ async def supprdemande(interaction: discord.Interaction, name: str, type: str):
                     if channel.topic and f"ID: {user_id}" in channel.topic:
                         user_channel = channel
                         break
-                
+
                 if "(Problème technique)" in game_name:
                     # ✅ Problème technique -> Message dans le salon personnel
                     cleaned_game_name = game_name.replace("(Problème technique)", "").strip()
@@ -385,7 +386,7 @@ async def supprdemande_name_autocomplete(interaction: discord.Interaction, curre
             SELECT DISTINCT game_name FROM game_requests WHERE LOWER(game_name) LIKE %s
             ORDER BY game ASC LIMIT 25
         """, (f"%{current_lower}%", f"%{current_lower}%"))
-        
+
         results = cursor.fetchall()
 
         if not results:
@@ -1083,7 +1084,7 @@ async def type_autocomplete(interaction: discord.Interaction, current: str):
     except Exception as e:
         conn.rollback()
         return []
-            
+
 ############################################
 #         CLASSE DE PAGINATION
 ############################################
