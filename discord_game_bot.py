@@ -11,8 +11,8 @@ import datetime
 import speech_recognition as sr
 from gtts import gTTS
 
-apt-get update
-apt-get install -y portaudio19-dev
+# Installation des dépendances système
+os.system("apt-get update && apt-get install -y portaudio19-dev")
 
 # Vérification et installation de requests si manquant
 try:
@@ -22,8 +22,6 @@ except ModuleNotFoundError:
     subprocess.run(["pip", "install", "requests"])
     import requests
 
-os.system("apt-get update && apt-get install -y portaudio19-dev")
-
 # Configuration du bot
 TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
@@ -31,9 +29,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Connexion à PostgreSQL
 DATABASE_URL = os.getenv("DATABASE_URL")
-conn = psycopg2.connect(DATABASE_URL, sslmode="require", client_encoding="UTF8")
+conn = psycopg2.connect(DATABASE_URL, sslmode="require")  # Retiré client_encoding (paramètre inutile)
 cursor = conn.cursor()
-
 
 # Création (ou mise à jour) de la table "games"
 cursor.execute('''CREATE TABLE IF NOT EXISTS games (
