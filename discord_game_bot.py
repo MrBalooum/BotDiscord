@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.ext import tasks
 import datetime
 import speech_recognition as sr
-import pyttsx3
+from gtts import gTTS
 
 # Vérification et installation de requests si manquant
 try:
@@ -104,10 +104,10 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS game_problems (
 )''')
 conn.commit()
 
-# Initialisation du moteur vocal
-engine = pyttsx3.init()
-engine.setProperty("rate", 150)  # Ajuste la vitesse de la voix
-engine.setProperty("voice", "english")  # Change la voix si besoin
+def text_to_speech(text, filename="output.mp3"):
+    tts = gTTS(text=text, lang="fr")
+    tts.save(filename)
+    return filename
 
 @bot.event
 async def on_ready():
